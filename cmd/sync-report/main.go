@@ -8,6 +8,7 @@ import (
 	"izettle-daily-reports/storage"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/api/drive/v3"
@@ -15,6 +16,8 @@ import (
 )
 
 func main() {
+	fmt.Printf("izettle-report-generator run at %s\n\n", time.Now())
+
 	fmt.Print("Loading .env file... ")
 	err := godotenv.Load()
 	if err != nil {
@@ -84,6 +87,7 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Finished generating reports!")
+	fmt.Println()
 }
 
 func handleError(err error) {
