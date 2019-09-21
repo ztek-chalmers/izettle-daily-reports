@@ -95,7 +95,7 @@ func handleError(err error) {
 func MustGetEnv(name string) string {
 	value := os.Getenv(name)
 	if value == "" {
-		log.Fatalf("Failed to get environment variable '%s'", value)
+		log.Fatalf("Failed to get environment variable '%s'", name)
 	}
 	return value
 }
