@@ -59,7 +59,7 @@ func main() {
 		handleError(err)
 		fmt.Printf(" - Found %d missing report(s)\n", len(missing))
 		for _, r := range missing {
-			fmt.Printf("    * %s\n", r.Report.From)
+			fmt.Printf("    * %s\n", r.Report.Date)
 			missingPDFs = append(missingPDFs, r)
 		}
 	}
@@ -72,12 +72,12 @@ func main() {
 
 	fmt.Printf("Creating %d missing PDF(s)...\n", len(missingPDFs))
 	for i, r := range missingPDFs {
-		filePath := fmt.Sprintf("%s/%s/%s", r.Report.User.Name, r.Report.From, storage.ReportFileName(r.Report))
-		fmt.Printf(" - Processing report %d of %d (%s)", i, len(missingPDFs), filePath)
-		fmt.Printf("    * Generating...")
-		pdf, err := izettleClient.ReportToPDF(r.Report)
+		filePath := fmt.Sprintf("%s/%s/%s", r.Report.User.Name, r.Report.Date, storage.ReportFileName(r.Report))
+		fmt.Printf(" - Processing report %d of %d (%s)\n", i, len(missingPDFs), filePath)
+		fmt.Println("    * Generating...")
+		pdf, err := izettleClient.DayReportToPDF(r.Report)
 		handleError(err)
-		fmt.Printf("    * Uploading...")
+		fmt.Println("    * Uploading...")
 		err = storage.UploadPDF(driveService, r, pdf)
 		handleError(err)
 	}

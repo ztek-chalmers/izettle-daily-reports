@@ -12,7 +12,7 @@ import (
 )
 
 type MissingPDF struct {
-	Report izettle.Report
+	Report izettle.DayReport
 	Dir    *drive.File
 }
 
@@ -36,7 +36,7 @@ func UploadPDF(ds *drive.Service, report MissingPDF, data io.Reader) error {
 	isYear := regexp.MustCompile("\\d+")
 	dir := report.Dir
 	if !isYear.Match([]byte(dir.Name)) {
-		year := strings.Split(report.Report.From, "-")[0]
+		year := strings.Split(report.Report.Date, "-")[0]
 		dir = &drive.File{
 			MimeType: "application/vnd.google-apps.folder",
 			Name:     year,
@@ -63,13 +63,13 @@ func UploadPDF(ds *drive.Service, report MissingPDF, data io.Reader) error {
 	return err
 }
 
-func MissingPDFs(ds *drive.Service, root *drive.File, reports []izettle.Report) ([]MissingPDF, error) {
+func MissingPDFs(ds *drive.Service, root *drive.File, reports []izettle.DayReport) ([]MissingPDF, error) {
 	missing := make([]MissingPDF, 0)
 	today := getToday()
 
-	reportYears := make(map[string][]izettle.Report)
+	reportYears := make(map[string][]izettle.DayReport)
 	for _, report := range reports {
-		year := strings.Split(report.From, "-")[0]
+		year := strings.Split(report.Date, "-")[0]
 		reportYears[year] = append(reportYears[year], report)
 	}
 	yearDirList, err := ds.Files.List().
@@ -89,7 +89,7 @@ func MissingPDFs(ds *drive.Service, root *drive.File, reports []izettle.Report) 
 		yearDir, ok := dirYears[year]
 		if !ok {
 			for _, report := range reports {
-				if report.From == today {
+				if report.Date == today {
 					continue
 				}
 				missing = append(missing, MissingPDF{Report: report, Dir: root})
@@ -113,8 +113,8 @@ func MissingPDFs(ds *drive.Service, root *drive.File, reports []izettle.Report) 
 			filesByDate[date] = file
 		}
 		for _, report := range reports {
-			if _, ok := filesByDate[report.From]; !ok {
-				if report.From == today {
+			if _, ok := filesByDate[report.Date]; !ok {
+				if report.Date == today {
 					continue
 				}
 				missing = append(missing, MissingPDF{Report: report, Dir: yearDir})
@@ -125,8 +125,8 @@ func MissingPDFs(ds *drive.Service, root *drive.File, reports []izettle.Report) 
 	return missing, nil
 }
 
-func ReportFileName(report izettle.Report) string {
-	return fmt.Sprintf("%s_%s.pdf", report.User.Name, report.From)
+func ReportFileName(report izettle.DayReport) string {
+	return fmt.Sprintf("%s_%s.pdf", report.User.Name, report.Date)
 }
 
 func fileDate(name string) (string, error) {

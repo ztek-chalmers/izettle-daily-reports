@@ -118,13 +118,12 @@ func (i *Client) ListUsers() (map[string]User, error) {
 	return users, nil
 }
 
-type Report struct {
+type DayReport struct {
 	User User
-	From string
-	To   string
+	Date string
 }
 
-func (i *Client) ListReports(user User) ([]Report, error) {
+func (i *Client) ListReports(user User) ([]DayReport, error) {
 	// Get the report summary for a user, this includes all reports which are available
 	// grouped by month.
 	resp, err := i.httpClient.Get("https://my.izettle.com/reports/summary?user=" + user.ID)
@@ -146,16 +145,11 @@ func (i *Client) ListReports(user User) ([]Report, error) {
 		return nil, err
 	}
 	// Time to flatten the data
-	var reports []Report
+	var reports []DayReport
 	months := data["daily"]
 	for _, month := range months {
 		for _, day := range month {
 			startTime, ok := day["aggregateStart"]
-			if !ok {
-				return nil, fmt.Errorf("report summary does not have a timestamp")
-			}
-			start := strings.Split(string((*startTime)[1:]), "T")[0]
-			endTime, ok := day["aggregateEnd"]
 			if !ok {
 				return nil, fmt.Errorf("report summary does not have a timestamp")
 			}
@@ -164,15 +158,41 @@ func (i *Client) ListReports(user User) ([]Report, error) {
 			// This timestamp is in the form 2019-09-21T01:56:09.462+0000.
 			// and we only care about the year month and day. Therefor we also
 			// cut the string at T. There are nicer ways of doing this but this works
-			end := strings.Split(string((*endTime)[1:]), "T")[0]
-			reports = append(reports, Report{
+			start := strings.Split(string((*startTime)[1:]), "T")[0]
+			reports = append(reports, DayReport{
 				User: user,
-				From: start,
-				To:   end,
+				Date: start,
 			})
 		}
 	}
 	return reports, nil
+}
+
+func (i *Client) DayReportToPDF(report DayReport) (io.Reader, error) {
+	pdfURL := fmt.Sprintf("https://my.izettle.com/reports.pdf?user=%s&aggregation=day&date=%s&type=pdf", report.User.ID, report.Date)
+	resp, err := i.httpClient.Get(pdfURL)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(body), nil
+}
+
+type Report struct {
+	User User
+	From string
+	To   string
+}
+
+func (r *Report) Day() DayReport {
+	return DayReport{
+		User: r.User,
+		Date: r.From,
+	}
 }
 
 // getAuthorization returns an authorization token from the cookie jar
@@ -214,6 +234,7 @@ func (i *Client) authorizedGetJSON(method, url string, out interface{}) error {
 	return json.Unmarshal(body, out)
 }
 
+// ReportToPDF generates reports for arbitrary dates
 func (i *Client) ReportToPDF(report Report) (io.Reader, error) {
 	// Trigger report generation
 	reportType := "PDF"
