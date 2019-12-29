@@ -19,46 +19,18 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func Login(user, password string) (*Client, error) {
+func Login(session string) (*Client, error) {
 	// Create cookie jar to store cookies which are set by later requests
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
 	}
+	cookieURL, err := url.Parse("https://my.izettle.com")
+	jar.SetCookies(cookieURL, []*http.Cookie{{
+		Name: "_izsessionat", Value: session,
+	}})
+
 	client := &http.Client{Jar: jar}
-
-	// Get csrf token from login page
-	loginURL := "https://login.izettle.com/login?username=" + url.QueryEscape(user)
-	resp, err := client.Get(loginURL)
-	if err != nil {
-		return nil, err
-	}
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	_ = resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	n := doc.Find("[name=_csrf]").First()
-	token, _ := n.Attr("value")
-
-	// Create the login form and simulate a login
-	form := url.Values{}
-	form.Add("_csrf", token)
-	form.Add("username", user)
-	form.Add("password", password)
-	form.Add("button", "")
-	resp, err = client.PostForm(loginURL, form)
-	if err != nil {
-		return nil, err
-	}
-	_ = resp.Body.Close()
-
-	// Make sue that the login added new cookies to the root domain
-	host, _ := url.Parse("https://izettle.com")
-	if len(jar.Cookies(host)) == 0 {
-		return nil, fmt.Errorf("failed to login")
-	}
-
 	return &Client{httpClient: client}, nil
 }
 

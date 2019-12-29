@@ -14,10 +14,8 @@ To install go run `./raspberypi-install.sh`
 The application can be configured by setting the following environment variables 
 
 ```bash
-# Your iZettle email adress
-IZETTLE_EMAIL=
-# Your iZettle password
-IZETTLE_PASSWORD=
+# Your iZettle session id, it's the value of the cookie you get when loggin into iZettle with the name _izsessionat
+IZETTLE_SESSION=
 # The folder where the reports will be generated, this is the folder ID which can be found in the folder url
 # https://drive.google.com/drive/u/0/folders/GDRIVE_FOLDER_ID
 GDRIVE_FOLDER_ID=
@@ -28,7 +26,7 @@ GDRIVE_FOLDER_ID=
 #    https://console.developers.google.com/apis/library/drive.googleapis.com
 # 3. Create a new oAuth2 Client 
 #    https://console.developers.google.com/apis/credentials
-CLIENT_ID=
+GDRIVE_CLIENT_ID=
 # The secret which is shown when creating the application
-CLIENT_SECRET=
+GDRIVE_CLIENT_SECRET=
 ```

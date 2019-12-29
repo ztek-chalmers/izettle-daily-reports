@@ -27,11 +27,10 @@ func main() {
 	}
 
 	fmt.Print("Reading environment variables... ")
-	applicationID := MustGetEnv("CLIENT_ID")
-	applicationSecret := MustGetEnv("CLIENT_SECRET")
+	applicationID := MustGetEnv("GDRIVE_CLIENT_ID")
+	applicationSecret := MustGetEnv("GDRIVE_CLIENT_SECRET")
 	driveDirectoryID := MustGetEnv("GDRIVE_FOLDER_ID")
-	izettleEmail := MustGetEnv("IZETTLE_EMAIL")
-	izettlePassword := MustGetEnv("IZETTLE_PASSWORD")
+	izettleSession := MustGetEnv("IZETTLE_SESSION")
 	fmt.Println("DONE")
 
 	fmt.Print("Logging in to your google account... ")
@@ -44,7 +43,7 @@ func main() {
 	fmt.Println("DONE")
 
 	fmt.Print("Logging in to your izettle account... ")
-	izettleClient, err := izettle.Login(izettleEmail, izettlePassword)
+	izettleClient, err := izettle.Login(izettleSession)
 	handleError(err)
 	users, err := izettleClient.ListUsers()
 	handleError(err)
