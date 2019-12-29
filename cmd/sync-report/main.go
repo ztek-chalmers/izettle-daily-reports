@@ -49,12 +49,35 @@ func main() {
 	fmt.Println("DONE")
 
 	fmt.Print("Logging in to your visma account... ")
-	_, err = visma.Login(vismaApplicationID, vismaApplicationSecret)
+	const production = true
+	const sandbox = false
+	v, err := visma.Login(vismaApplicationID, vismaApplicationSecret, sandbox)
 	handleError(err)
 	fmt.Println("DONE")
 
+	voucher, err := v.NewVoucher(visma.Voucher{
+		VoucherDate: visma.DateFrom(time.Now()),
+		VoucherText: "iZettle",
+		Rows: []visma.VoucherRow{
+			{
+				AccountNumber: 1510,
+				DebitAmount:   1000,
+				//CostCenterItemID1: "Ztyret",
+				//ProjectID: "",
+			},
+			{
+				AccountNumber: 1910,
+				CreditAmount:  1000,
+				//CostCenterItemID1: "Ztyret",
+				//ProjectID: "",
+			},
+		},
+		VoucherType: visma.ManualVoucher,
+	})
+	handleError(err)
+
+	fmt.Println(voucher)
 	return
-	//fmt.Println(driveService)
 	//users, err := izettleClient.ListUsers()
 	//handleError(err)
 	//

@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-if [ ! -f /tmp/foo.txt ]; then
+if [ ! -f server.key ]; then
 openssl req \
        -x509 \
        -nodes \
