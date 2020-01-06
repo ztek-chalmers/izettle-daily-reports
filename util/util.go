@@ -59,7 +59,7 @@ func (d *Date) UnmarshalJSON(data []byte) error {
 	}
 	// Fractional seconds are handled implicitly by Parse.
 	var err error
-	noQuote := data[1 : len(data)-2]
+	noQuote := data[1 : len(data)-1]
 	date := strings.Split(string(noQuote), "T")
 	part := strings.Split(date[0], "-")
 	var intPart []int

@@ -61,6 +61,11 @@ func (c *Client) GetRequest(resource string, respType interface{}) error {
 	return json.Unmarshal(respData, respType)
 }
 
+func (c *Client) GetRequestPage(resource string, page, pageSize int, respType interface{}) error {
+	search := fmt.Sprintf("?$pagesize=%d&$page=%d", pageSize, page)
+	return c.GetRequest(resource+search, respType)
+}
+
 func (c *Client) PostRequest(resource string, reqType interface{}, respType interface{}) error {
 	http, err := c.Http()
 	if err != nil {

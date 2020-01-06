@@ -69,28 +69,29 @@ func GetUnmatchedReports(reports []izettle.Report, vouchers []visma.Voucher, cos
 				// so we know it can't be the same sale
 				continue
 			}
-			if voucher.VoucherDate.Equal(report.Date) {
-				// If the dates do not match,
-				// so we know it can't be the same sale
-				continue
+			costCenter, err := GetVoucherCostCenter(voucher, costCenterItems)
+			if err != nil {
+				return nil, err
 			}
 			sum, err := GetVoucherSum(voucher)
 			if err != nil {
 				return nil, err
+			}
+			if !voucher.VoucherDate.Equal(report.Date) {
+				// If the dates do not match,
+				// so we know it can't be the same sale
+				continue
 			}
 			if !sum.Equal(report.Sum().Decimal) {
 				// The price amounts do not match,
 				// so we know it can't be the same sale
 				continue
 			}
-			costCenter, err := GetVoucherCostCenter(voucher, costCenterItems)
-			if err != nil {
-				return nil, err
-			}
 			if !IsSameUser(report, *costCenter) {
 				// The report and voucher did not reference the same user
-				// so we know it can't be the same sale
-				continue
+				// but the sum and date are correct so we currently error on this.
+				// Chances of this happening are close to zero.
+				return nil, fmt.Errorf("found voucher with the correct date and amount but not the same user: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
 			}
 			exists = true
 			break
@@ -110,28 +111,28 @@ func GetUnmatchedVouchers(reports []izettle.Report, vouchers []visma.Voucher, co
 			// so we know it can't be the same sale
 			continue
 		}
+		costCenter, err := GetVoucherCostCenter(voucher, costCenterItems)
+		if err != nil {
+			return nil, err
+		}
+		sum, err := GetVoucherSum(voucher)
+		if err != nil {
+			return nil, err
+		}
 		exists := false
 		for _, report := range reports {
-			if voucher.VoucherDate.Equal(report.Date) {
+			if !voucher.VoucherDate.Equal(report.Date) {
 				// If the dates do not match,
 				// so we know it can't be the same sale
 				continue
 			}
-			sum, err := GetVoucherSum(voucher)
-			if err != nil {
-				return nil, err
-			}
-			if !sum.Equal(report.Sum().Decimal) {
-				// The price amounts do not match,
+			if !IsSameUser(report, *costCenter) {
+				// The report and voucher did not reference the same user
 				// so we know it can't be the same sale
 				continue
 			}
-			costCenter, err := GetVoucherCostCenter(voucher, costCenterItems)
-			if err != nil {
-				return nil, err
-			}
-			if !IsSameUser(report, *costCenter) {
-				// The report and voucher did not reference the same user
+			if !sum.Equal(report.Sum().Decimal) {
+				// The price amounts do not match,
 				// so we know it can't be the same sale
 				continue
 			}

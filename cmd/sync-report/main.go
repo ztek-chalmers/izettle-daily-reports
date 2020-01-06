@@ -97,7 +97,7 @@ func main() {
 	if len(ignoredReports) > 0 {
 		fmt.Printf("Failed to generate vouchers for the following repports\n")
 		for _, r := range ignoredReports {
-			fmt.Printf(" - %s\t%s\n", r.Date, r.Username)
+			fmt.Printf(" - %s\t%s\n", r.Date.String(), r.Username)
 		}
 		fmt.Println()
 	}
@@ -120,7 +120,6 @@ func main() {
 		handleError(err)
 	}
 	fmt.Println()
-	os.Exit(0)
 
 	fmt.Printf("Upploading vouchers...\n")
 	for _, v := range pendingVouchers {

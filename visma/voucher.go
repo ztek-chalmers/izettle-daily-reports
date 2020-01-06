@@ -44,11 +44,25 @@ func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 	} else if len(id) == 2 {
 		resource = resource + "/" + id[0] + "/" + id[1]
 	}
-	err := c.GetRequest(resource, resp)
+
+	err := c.GetRequestPage(resource, 1, 1000, resp)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Data, nil
+	vouchers := resp.Data
+	for {
+		if resp.Meta.CurrentPage >= resp.Meta.TotalNumberOfPages {
+			break
+		}
+		err := c.GetRequestPage(resource, resp.Meta.CurrentPage+1, resp.Meta.PageSize, resp)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range resp.Data {
+			vouchers = append(vouchers, v)
+		}
+	}
+	return vouchers, nil
 }
 
 func (c *Client) NewVoucher(voucher Voucher) (*Voucher, error) {
