@@ -10,18 +10,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Decimal struct {
+type Money struct {
 	decimal.Decimal
 }
 
-func (d Decimal) EncodeValues(key string, v *url.Values) error {
+func (d Money) EncodeValues(key string, v *url.Values) error {
 	v.Add(key, d.String())
 	return nil
-}
-
-func DecimalFromFixedPointInt(i int) Decimal {
-	d := decimal.NewFromInt(int64(i)).Div(decimal.NewFromInt(100))
-	return Decimal{d}
 }
 
 func DateFromStringOrPanic(t string) Date {

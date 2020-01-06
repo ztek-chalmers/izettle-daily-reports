@@ -6,6 +6,8 @@ import (
 	"izettle-daily-reports/util"
 	"sort"
 	"strconv"
+
+	"github.com/shopspring/decimal"
 )
 
 type Report struct {
@@ -18,21 +20,21 @@ type Report struct {
 type ReportRow struct {
 	Name         string
 	Count        int
-	Amount       int
+	Amount       util.Money
 	VismaAccount int
 }
 
 type VismaRow struct {
-	Amount       int
+	Amount       util.Money
 	VismaAccount int
 }
 
-func (r Report) Sum() int {
-	s := 0
+func (r Report) Sum() util.Money {
+	d := decimal.Zero
 	for _, p := range r.Rows {
-		s += p.Amount
+		d = d.Add(p.Amount.Decimal)
 	}
-	return s
+	return util.Money{d}
 }
 
 func (r Report) RowsByVismaAccount() ([]VismaRow, error) {
@@ -43,7 +45,7 @@ func (r Report) RowsByVismaAccount() ([]VismaRow, error) {
 		}
 		account := accounts[row.VismaAccount]
 		account.VismaAccount = row.VismaAccount
-		account.Amount += row.Amount
+		account.Amount = util.Money{account.Amount.Add(row.Amount.Decimal)}
 		accounts[account.VismaAccount] = account
 	}
 	accountList := make([]VismaRow, 0)

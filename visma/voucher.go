@@ -62,21 +62,21 @@ func (c *Client) NewVoucher(voucher Voucher) (*Voucher, error) {
 }
 
 type VoucherRow struct {
-	AccountNumber      int          `url:"AccountNumber,omitempty"`
-	AccountDescription string       `url:"AccountDescription,omitempty"`
-	DebitAmount        util.Decimal `url:"DebitAmount,omitempty"`
-	CreditAmount       util.Decimal `url:"CreditAmount,omitempty"`
-	TransactionText    string       `url:"TransactionText,omitempty"`
-	CostCenterItemID1  string       `url:"CostCenterItemId1,omitempty"`
-	CostCenterItemID2  string       `url:"CostCenterItemId2,omitempty"`
-	CostCenterItemID3  string       `url:"CostCenterItemId3,omitempty"`
-	VatCodeID          string       `url:"VatCodeId,omitempty"`
-	VatCodeAndPercent  string       `url:"VatCodeAndPercent,omitempty"`
-	Quantity           int          `url:"Quantity,omitempty"`
-	Weight             int          `url:"Weight,omitempty"`
-	DeliveryDate       time.Time    `url:"DeliveryDate,omitempty"`
-	HarvestYear        int          `url:"HarvestYear,omitempty"`
-	ProjectID          string       `url:"ProjectId,omitempty"`
+	AccountNumber      int        `url:"AccountNumber,omitempty"`
+	AccountDescription string     `url:"AccountDescription,omitempty"`
+	DebitAmount        util.Money `url:"DebitAmount,omitempty"`
+	CreditAmount       util.Money `url:"CreditAmount,omitempty"`
+	TransactionText    string     `url:"TransactionText,omitempty"`
+	CostCenterItemID1  string     `url:"CostCenterItemId1,omitempty"`
+	CostCenterItemID2  string     `url:"CostCenterItemId2,omitempty"`
+	CostCenterItemID3  string     `url:"CostCenterItemId3,omitempty"`
+	VatCodeID          string     `url:"VatCodeId,omitempty"`
+	VatCodeAndPercent  string     `url:"VatCodeAndPercent,omitempty"`
+	Quantity           int        `url:"Quantity,omitempty"`
+	Weight             int        `url:"Weight,omitempty"`
+	DeliveryDate       time.Time  `url:"DeliveryDate,omitempty"`
+	HarvestYear        int        `url:"HarvestYear,omitempty"`
+	ProjectID          string     `url:"ProjectId,omitempty"`
 }
 
 type VoucherAttachment struct {

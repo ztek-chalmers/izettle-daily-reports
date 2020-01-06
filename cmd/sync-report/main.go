@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"izettle-daily-reports/generate"
 	"izettle-daily-reports/izettle"
 	"izettle-daily-reports/preferences"
 	"izettle-daily-reports/visma"
@@ -77,11 +78,11 @@ func main() {
 
 	fmt.Print("Generating vouchers... ")
 	reports := izettle.Reports(*purchases, products)
-	unmatchedVouchers, err := getUnmatchedVouchers(reports, vouchers, cc[0].Items)
+	unmatchedVouchers, err := generate.GetUnmatchedVouchers(reports, vouchers, cc[0].Items)
 	handleError(err)
-	unmatchedReports, err := getUnmatchedReports(reports, vouchers, cc[0].Items)
+	unmatchedReports, err := generate.GetUnmatchedReports(reports, vouchers, cc[0].Items)
 	handleError(err)
-	pendingVouchers, ignoredReports, err := generatePendingVouchers(unmatchedReports, cc[0].Items, uncategorizedIzettlePrj)
+	pendingVouchers, ignoredReports, err := generate.GeneratePendingVouchers(unmatchedReports, cc[0].Items, uncategorizedIzettlePrj)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -108,21 +109,22 @@ func main() {
 
 	fmt.Printf("Preparing to uppload %d vouchers\n", len(pendingVouchers))
 	for _, v := range pendingVouchers {
-		sum, err := getVoucherSum(v)
+		sum, err := generate.GetVoucherSum(v)
 		handleError(err)
 		fmt.Printf(" * %s\t%s\t%s\n", v.VoucherDate.String(), v.VoucherText, sum.String())
 		for _, r := range v.Rows {
-			costCenter, err := getVoucherCostCenter(v, cc[0].Items)
+			costCenter, err := generate.GetVoucherCostCenter(v, cc[0].Items)
 			handleError(err)
 			fmt.Printf("     %d\t%s\t%s\t%s\n", r.AccountNumber, costCenter.ShortName, r.DebitAmount.String(), r.CreditAmount.String())
 		}
 		handleError(err)
 	}
 	fmt.Println()
+	os.Exit(0)
 
 	fmt.Printf("Upploading vouchers...\n")
 	for _, v := range pendingVouchers {
-		sum, err := getVoucherSum(v)
+		sum, err := generate.GetVoucherSum(v)
 		handleError(err)
 		fmt.Printf(" + %s\t%s\t%s...", v.VoucherDate.String(), v.VoucherText, sum.String())
 		_, err = vi.NewVoucher(v)

@@ -1,17 +1,16 @@
-package main
+package generate
 
 import (
 	"izettle-daily-reports/izettle"
 	"izettle-daily-reports/preferences"
-	"izettle-daily-reports/util"
 	"izettle-daily-reports/visma"
 )
 
-func generatePendingVouchers(unmatchedReports []izettle.Report, costCenterItems []visma.CostCenterItem, vismaProject visma.Project) ([]visma.Voucher, []izettle.Report, error) {
+func GeneratePendingVouchers(unmatchedReports []izettle.Report, costCenterItems []visma.CostCenterItem, vismaProject visma.Project) ([]visma.Voucher, []izettle.Report, error) {
 	ignoredReports := []izettle.Report{}
 	pendingVouchers := []visma.Voucher{}
 	for _, report := range unmatchedReports {
-		costCenter, err := getReportCostCenter(report, costCenterItems)
+		costCenter, err := GetReportCostCenter(report, costCenterItems)
 		if err != nil {
 			// We did not manage to lookup the cost center for the report,
 			// this is probably due to a name being wrong in izettle
@@ -27,14 +26,14 @@ func generatePendingVouchers(unmatchedReports []izettle.Report, costCenterItems 
 		var rows []visma.VoucherRow
 		rows = append(rows, visma.VoucherRow{
 			AccountNumber:     preferences.IzettleLedgerAccountNumber,
-			DebitAmount:       util.DecimalFromFixedPointInt(report.Sum()),
+			DebitAmount:       report.Sum(),
 			CostCenterItemID1: costCenter.ID,
 			ProjectID:         vismaProject.ID,
 		})
 		for _, s := range vismaAccountRows {
 			rows = append(rows, visma.VoucherRow{
 				AccountNumber:     s.VismaAccount,
-				CreditAmount:      util.DecimalFromFixedPointInt(s.Amount),
+				CreditAmount:      s.Amount,
 				CostCenterItemID1: costCenter.ID,
 				ProjectID:         vismaProject.ID,
 			})
