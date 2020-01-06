@@ -1,6 +1,11 @@
 package visma
 
-import "time"
+import (
+	"fmt"
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 const ManualVoucher = 2
 const BankAccountTransferDeposit = 5
@@ -27,27 +32,24 @@ const SupplierQuickInvoiceDebit = 25
 const SupplierQuickInvoiceCredit = 26
 const IZettleVoucher = 27
 
-func (c *Client) Vouchers() ([]Voucher, error) {
+func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 	resource := "vouchers"
 	resp := &struct {
 		Meta Meta
 		Data []Voucher
 	}{}
+	if len(id) > 2 {
+		return nil, fmt.Errorf("vouchers can only take one optional fiscal year and voucher id")
+	} else if len(id) == 1 {
+		resource = resource + "/" + id[0]
+	} else if len(id) == 2 {
+		resource = resource + "/" + id[0] + "/" + id[1]
+	}
 	err := c.GetRequest(resource, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
-}
-
-func (c *Client) Voucher(id string) (*Voucher, error) {
-	resource := "vouchers/" + id
-	resp := &Voucher{}
-	err := c.GetRequest(resource, resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (c *Client) NewVoucher(voucher Voucher) (*Voucher, error) {
@@ -61,21 +63,21 @@ func (c *Client) NewVoucher(voucher Voucher) (*Voucher, error) {
 }
 
 type VoucherRow struct {
-	AccountNumber      int       `url:"AccountNumber,omitempty"`
-	AccountDescription string    `url:"AccountDescription,omitempty"`
-	DebitAmount        float64   `url:"DebitAmount,omitempty"`
-	CreditAmount       float64   `url:"CreditAmount,omitempty"`
-	TransactionText    string    `url:"TransactionText,omitempty"`
-	CostCenterItemID1  string    `url:"CostCenterItemId1,omitempty"`
-	CostCenterItemID2  string    `url:"CostCenterItemId2,omitempty"`
-	CostCenterItemID3  string    `url:"CostCenterItemId3,omitempty"`
-	VatCodeID          string    `url:"VatCodeId,omitempty"`
-	VatCodeAndPercent  string    `url:"VatCodeAndPercent,omitempty"`
-	Quantity           int       `url:"Quantity,omitempty"`
-	Weight             int       `url:"Weight,omitempty"`
-	DeliveryDate       time.Time `url:"DeliveryDate,omitempty"`
-	HarvestYear        int       `url:"HarvestYear,omitempty"`
-	ProjectID          string    `url:"ProjectId,omitempty"`
+	AccountNumber      int             `url:"AccountNumber,omitempty"`
+	AccountDescription string          `url:"AccountDescription,omitempty"`
+	DebitAmount        decimal.Decimal `url:"DebitAmount,omitempty"`
+	CreditAmount       decimal.Decimal `url:"CreditAmount,omitempty"`
+	TransactionText    string          `url:"TransactionText,omitempty"`
+	CostCenterItemID1  string          `url:"CostCenterItemId1,omitempty"`
+	CostCenterItemID2  string          `url:"CostCenterItemId2,omitempty"`
+	CostCenterItemID3  string          `url:"CostCenterItemId3,omitempty"`
+	VatCodeID          string          `url:"VatCodeId,omitempty"`
+	VatCodeAndPercent  string          `url:"VatCodeAndPercent,omitempty"`
+	Quantity           int             `url:"Quantity,omitempty"`
+	Weight             int             `url:"Weight,omitempty"`
+	DeliveryDate       time.Time       `url:"DeliveryDate,omitempty"`
+	HarvestYear        int             `url:"HarvestYear,omitempty"`
+	ProjectID          string          `url:"ProjectId,omitempty"`
 }
 
 type VoucherAttachment struct {
@@ -96,28 +98,4 @@ type Voucher struct {
 	VoucherType           int                `url:"VoucherType,omitempty"`
 	SourceID              string             `url:"SourceId,omitempty"`
 	CreatedUtc            time.Time          `url:"CreatedUtc,omitempty"`
-}
-
-type NewAttachment struct {
-	ID          string `url:"Id,omitempty"`
-	ContentType string `url:"ContentType,omitempty"`
-	FileName    string `url:"FileName,omitempty"`
-	Data        string `url:"Data,omitempty"`
-	URL         string `url:"Url,omitempty"`
-}
-
-type Attachment struct {
-	ID                    string `url:"Id,omitempty"`
-	ContentType           string `url:"ContentType,omitempty"`
-	DocumentID            string `url:"DocumentId,omitempty"`
-	AttachedDocumentType  int    `url:"AttachedDocumentType,omitempty"`
-	FileName              string `url:"FileName,omitempty"`
-	TemporaryURL          string `url:"TemporaryUrl,omitempty"`
-	Comment               string `url:"Comment,omitempty"`
-	SupplierName          string `url:"SupplierName,omitempty"`
-	AmountInvoiceCurrency int    `url:"AmountInvoiceCurrency,omitempty"`
-	Type                  int    `url:"Type,omitempty"`
-	AttachmentStatus      int    `url:"AttachmentStatus,omitempty"`
-	UploadedBy            string `url:"UploadedBy,omitempty"`
-	ImageDate             Date   `url:"ImageDate,omitempty"`
 }

@@ -20,8 +20,18 @@ type Client struct {
 	url   string
 }
 
-func DateFrom(t time.Time) Date {
-	return Date{t: t}
+func DateFromString(t string) (Date, error) {
+	var d Date
+	err := d.UnmarshalJSON([]byte("\"" + t + "\""))
+	return d, err
+}
+
+func (d *Date) Time() time.Time {
+	return d.t
+}
+
+func (d *Date) String() string {
+	return d.t.Format("2006-01-02")
 }
 
 type Date struct {
@@ -36,7 +46,8 @@ func (d *Date) UnmarshalJSON(data []byte) error {
 	// Fractional seconds are handled implicitly by Parse.
 	var err error
 	noQuote := data[1 : len(data)-2]
-	part := strings.Split(string(noQuote), "-")
+	date := strings.Split(string(noQuote), "T")
+	part := strings.Split(date[0], "-")
 	var intPart []int
 	for _, p := range part {
 		i, err := strconv.Atoi(p)
@@ -74,7 +85,7 @@ func (d Date) MarshalJSON() ([]byte, error) {
 
 	b := make([]byte, 0, len(`"2019-12-12"`))
 	b = append(b, '"')
-	b = append(b, []byte(d.t.Format("2006-01-02"))...)
+	b = append(b, []byte(d.String())...)
 	b = append(b, '"')
 	return b, nil
 }
@@ -115,10 +126,11 @@ func (c *Client) GetRequest(resource string, respType interface{}) error {
 	}
 	defer resp.Body.Close()
 	respData, err := ioutil.ReadAll(resp.Body)
-	test := string(respData)
-	fmt.Println(test)
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("GET request failed: %s. Got '%s' for %s", string(respData), resp.Status, resp.Request.URL)
 	}
 	return json.Unmarshal(respData, respType)
 }
@@ -140,6 +152,9 @@ func (c *Client) PostRequest(resource string, reqType interface{}, respType inte
 	respData, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("POST request failed: %s. Got '%s' for %s", string(respData), resp.Status, resp.Request.URL)
 	}
 	return json.Unmarshal(respData, respType)
 }

@@ -18,6 +18,9 @@ var ProductionEndpoint = oauth2.Endpoint{
 }
 var ProductionURL = "https://eaccountingapi.vismaonline.com/v2/"
 
+const Production = true
+const Sandbox = false
+
 func Login(id, secret string, production bool) (*Client, error) {
 	var endpoint oauth2.Endpoint
 	if production {
@@ -35,7 +38,7 @@ func Login(id, secret string, production bool) (*Client, error) {
 			Oauth: &oauth2.Config{
 				ClientID:     id,
 				ClientSecret: secret,
-				Scopes:       []string{"ea:api", "ea:accounting", "offline_access"},
+				Scopes:       []string{"ea:api", "ea:accounting", "ea:sales", "offline_access"},
 				Endpoint:     endpoint,
 			},
 		},

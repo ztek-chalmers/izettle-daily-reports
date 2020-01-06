@@ -18,7 +18,7 @@ var Endpoint = oauth2.Endpoint{
 	TokenURL: "https://oauth.izettle.com/token",
 }
 
-func Login(user, password, id, secret string) (oauth2.TokenSource, error) {
+func Login(user, password, id, secret string) (*Client, error) {
 	storage := &loopback.Storage{Name: "izettle"}
 	oauth := &oauth2.Config{
 		ClientID:     id,
@@ -32,14 +32,18 @@ func Login(user, password, id, secret string) (oauth2.TokenSource, error) {
 
 	token, err := storage.Load()
 	if err == nil {
-		return auth.Refresh(token)
+		token, err := auth.Refresh(token)
+		if err != nil {
+			return nil, err
+		}
+		return &Client{token: token}, nil
 	}
 	token, err = fetchToken(user, password, id, secret)
 	if err != nil {
 		return nil, err
 	}
 	_ = storage.Persist(*token)
-	return oauth.TokenSource(context.Background(), token), nil
+	return &Client{token: oauth.TokenSource(context.Background(), token)}, nil
 }
 
 // fetchToken uses a password grant instead of an ordinary oauth
@@ -48,7 +52,7 @@ func Login(user, password, id, secret string) (oauth2.TokenSource, error) {
 func fetchToken(user, password, id, secret string) (*oauth2.Token, error) {
 	bodyStr := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&username=%s&password=%s", id, secret, user, password)
 	body := bytes.NewReader([]byte(url.PathEscape(bodyStr)))
-	resp, err := http.Post("https://oauth.izettle.com/token", "application/x-www-form-urlencoded", body)
+	resp, err := http.Post(oauthURL+"/token", "application/x-www-form-urlencoded", body)
 	if err != nil {
 		return nil, err
 	}
