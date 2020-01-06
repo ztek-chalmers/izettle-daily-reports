@@ -2,6 +2,7 @@ package visma
 
 import (
 	"fmt"
+	"izettle-daily-reports/util"
 	"time"
 )
 
@@ -9,8 +10,8 @@ type Project struct {
 	ID           string    `json:"Id"`
 	Number       string    `json:"Number"`
 	Name         string    `json:"Name"`
-	StartDate    Date      `json:"StartDate"`
-	EndDate      Date      `json:"EndDate"`
+	StartDate    util.Date `json:"StartDate"`
+	EndDate      util.Date `json:"EndDate"`
 	CustomerID   string    `json:"CustomerId"`
 	CustomerName string    `json:"CustomerName"`
 	Notes        string    `json:"Notes"`

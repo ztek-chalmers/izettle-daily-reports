@@ -3,12 +3,13 @@ package izettle
 import (
 	"fmt"
 	"izettle-daily-reports/preferences"
+	"izettle-daily-reports/util"
 	"sort"
 	"strconv"
 )
 
 type Report struct {
-	Date     string
+	Date     util.Date
 	User     int
 	Username string
 	Rows     []ReportRow
@@ -106,7 +107,7 @@ func Reports(purchases Purchases, products []Product) []Report {
 	}
 
 	sort.SliceStable(reports, func(i, j int) bool {
-		return reports[i].Date < reports[j].Date
+		return reports[i].Date.Before(reports[j].Date)
 	})
 	return reports
 }

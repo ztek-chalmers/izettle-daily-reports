@@ -2,6 +2,7 @@ package preferences
 
 const IzettleLedgerAccountNumber = 1690
 const OtherIncomeAccountNumber = 3110
+const VismaUncategorizedProjectNumber = "1"
 
 var IzettleVismaMap = []struct {
 	Izettle string

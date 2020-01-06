@@ -1,6 +1,9 @@
 package visma
 
-import "time"
+import (
+	"izettle-daily-reports/util"
+	"time"
+)
 
 func (c *Client) NewCustomerInvoice(voucher CustomerInvoice) (*CustomerInvoice, error) {
 	resource := "customerinvoices"
@@ -27,9 +30,9 @@ type CustomerInvoice struct {
 	SetOffAmountInvoiceCurrency              int       `json:"SetOffAmountInvoiceCurrency"`
 	CustomerID                               string    `json:"CustomerId"`
 	Rows                                     []Rows    `json:"Rows"`
-	InvoiceDate                              Date      `json:"InvoiceDate"`
-	DueDate                                  Date      `json:"DueDate"`
-	DeliveryDate                             Date      `json:"DeliveryDate"`
+	InvoiceDate                              util.Date `json:"InvoiceDate"`
+	DueDate                                  util.Date `json:"DueDate"`
+	DeliveryDate                             util.Date `json:"DeliveryDate"`
 	RotReducedInvoicingType                  int       `json:"RotReducedInvoicingType"`
 	RotReducedInvoicingAmount                int       `json:"RotReducedInvoicingAmount"`
 	RotReducedInvoicingPercent               int       `json:"RotReducedInvoicingPercent"`

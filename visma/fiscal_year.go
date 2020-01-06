@@ -2,15 +2,16 @@ package visma
 
 import (
 	"fmt"
+	"izettle-daily-reports/util"
 	"time"
 )
 
 type FiscalYear struct {
-	ID                    string `json:"Id"`
-	StartDate             Date   `json:"StartDate"`
-	EndDate               Date   `json:"EndDate"`
-	IsLockedForAccounting bool   `json:"IsLockedForAccounting"`
-	BookkeepingMethod     int    `json:"BookkeepingMethod"`
+	ID                    string    `json:"Id"`
+	StartDate             util.Date `json:"StartDate"`
+	EndDate               util.Date `json:"EndDate"`
+	IsLockedForAccounting bool      `json:"IsLockedForAccounting"`
+	BookkeepingMethod     int       `json:"BookkeepingMethod"`
 }
 
 func (c *Client) FiscalYears() ([]FiscalYear, error) {
