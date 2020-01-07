@@ -62,6 +62,16 @@ func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 			vouchers = append(vouchers, v)
 		}
 	}
+
+	voucherExists := make(map[string]bool)
+	for _, v := range vouchers {
+		exists := voucherExists[v.NumberAndNumberSeries]
+		if exists {
+			return nil, fmt.Errorf("found duplicate for voucher %s", v.NumberAndNumberSeries)
+		}
+		voucherExists[v.NumberAndNumberSeries] = true
+	}
+
 	return vouchers, nil
 }
 

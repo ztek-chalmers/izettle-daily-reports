@@ -62,7 +62,7 @@ func (c *Client) GetRequest(resource string, respType interface{}) error {
 }
 
 func (c *Client) GetRequestPage(resource string, page, pageSize int, respType interface{}) error {
-	search := fmt.Sprintf("?$pagesize=%d&$page=%d", pageSize, page)
+	search := fmt.Sprintf("?$pagesize=%d&$page=%d&$orderby=Number", pageSize, page)
 	return c.GetRequest(resource+search, respType)
 }
 
