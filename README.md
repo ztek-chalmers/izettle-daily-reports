@@ -67,7 +67,7 @@ snippet. All the values can be changed based on the situation.
     ["ZIK .", "ZIK"],
     ["Argz .", "ArgZ"],
     ["Zenith .", "Zenith"],
-    ["SNZ .", "SNZ"],
+    ["SNZ .", "SNZ"]
   ]
 }
 ```
