@@ -68,12 +68,19 @@ func main() {
 	pref := Preferences{}
 	err = json.Unmarshal(prefData, &pref)
 	handleError(err)
+	toDate := util.DateFromTime(time.Now().AddDate(0, 0, -2))
 	fromDate := currentYear.StartDate
 	if pref.FromDate.After(fromDate) {
 		fromDate = pref.FromDate
 	} else {
 		fmt.Println("\n * From date was before the start of this year and is therefor ignored.")
 	}
+	if fromDate.After(toDate) {
+		fmt.Println("\nThe from date is after the to date. This will not result in any imports.\nABORTING!")
+		return
+	}
+	// We only import reports created more than 2 days ago, this is to make sure that we do not
+	// import a half finished report.
 	fmt.Println("DONE")
 
 	var uncategorizedIzettlePrj visma.Project
@@ -87,8 +94,8 @@ func main() {
 		handleError(fmt.Errorf("unable to find poject with number: %s", pref.VismaUncategorizedProjectNumber))
 	}
 
-	fmt.Printf("Fetching visma vouchers between %s and %s... ", fromDate.String(), currentYear.EndDate.String())
-	vouchers, err := vi.Vouchers(pref.FromDate, currentYear.ID)
+	fmt.Printf("Fetching visma vouchers between %s and %s... ", fromDate.String(), toDate.String())
+	vouchers, err := vi.Vouchers(fromDate, toDate, currentYear.ID)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -96,8 +103,8 @@ func main() {
 	products, err := iz.Products()
 	handleError(err)
 	fmt.Println("DONE")
-	fmt.Printf("Fetching izettle purchases between %s and %s... ", fromDate.String(), currentYear.EndDate.String())
-	purchases, err := iz.Purchases(fromDate, currentYear.EndDate)
+	fmt.Printf("Fetching izettle purchases between %s and %s... ", fromDate.String(), toDate.String())
+	purchases, err := iz.Purchases(fromDate, toDate)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -131,7 +138,7 @@ func main() {
 
 	if len(pendingVouchers) == 0 {
 		fmt.Printf("All %d reports are already imported into visma. Just chilaxing for now.", len(reports))
-		os.Exit(0)
+		return
 	}
 
 	fmt.Printf("Preparing to upload %d vouchers\n", len(pendingVouchers))

@@ -52,6 +52,10 @@ type Date struct {
 	t time.Time
 }
 
+func DateFromTime(t time.Time) Date {
+	return Date{t}
+}
+
 func (d *Date) UnmarshalJSON(data []byte) error {
 	// Ignore null, like in the main JSON package.
 	if string(data) == "null" {

@@ -1,7 +1,9 @@
 # iZettle Daily Reports
 
-This is a small tool to generate daily iZettle reports which then are uploaded to Google Drive. The report generator
-can be run with `./run.sh`
+This is a small tool to mirror izettle sales to visma. The report generator can be run with `./run.sh`.
+izettle-daily-reports only imports reports which are 2 or more days old. This is to make sure that
+reports which are half-done, if an import would happen in the between two sales on the dame day.
+If it detects a partial import, it will fail.
 
 ## Installation
 
@@ -15,7 +17,7 @@ The application can be configured by setting the following environment variables
 `.env` in the same folder as this README file with a copy of the follow snippet. Before you can run the
 tool, you have to get the passwords, id's and secrets from their respective place.
 
-This informatino should NEVER be saved in a public place. 
+This information should NEVER be saved in a public place!!!
 
 ```bash
 # Your iZettle email adress
@@ -53,6 +55,7 @@ snippet. All the values can be changed based on the situation.
 
 ```json
 {
+  "fromDate": "2020-01-01",
   "izettleLedgerAccountNumber": 1690,
   "otherIncomeAccountNumber": 3110,
   "vismaUncategorizedProjectNumber": "1",

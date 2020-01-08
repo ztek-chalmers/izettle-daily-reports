@@ -110,16 +110,15 @@ func (m *Matcher) GetUnmatchedReports(reports []izettle.Report, vouchers []visma
 				// so we know it can't be the same sale
 				continue
 			}
-			if !sum.Equal(report.Sum().Decimal) {
-				// The price amounts do not match,
+			if !m.IsSameUser(report, *costCenter) {
+				// The report and voucher did not reference the same user
 				// so we know it can't be the same sale
 				continue
 			}
-			if !m.IsSameUser(report, *costCenter) {
-				// The report and voucher did not reference the same user
-				// but the sum and date are correct so we currently error on this.
-				// Chances of this happening are close to zero.
-				return nil, fmt.Errorf("found voucher with the correct date and amount but not the same user: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
+			if !sum.Equal(report.Sum().Decimal) {
+				// The price amounts do not match,
+				// so we know it can't be the same sale
+				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
 			}
 			exists = true
 			break
@@ -154,15 +153,15 @@ func (m *Matcher) GetUnmatchedVouchers(reports []izettle.Report, vouchers []vism
 				// so we know it can't be the same sale
 				continue
 			}
-			if !sum.Equal(report.Sum().Decimal) {
-				// The price amounts do not match,
-				// so we know it can't be the same sale
-				continue
-			}
 			if !m.IsSameUser(report, *costCenter) {
 				// The report and voucher did not reference the same user
 				// so we know it can't be the same sale
-				return nil, fmt.Errorf("found voucher with the correct date and amount but not the same user: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
+				continue
+			}
+			if !sum.Equal(report.Sum().Decimal) {
+				// The price amounts do not match,
+				// so we know it can't be the same sale
+				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
 			}
 			exists = true
 			break
