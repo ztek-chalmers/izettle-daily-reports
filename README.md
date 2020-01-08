@@ -11,24 +11,60 @@ To install go run `./raspberypi-install.sh`
 
 ## Configuration
 
-The application can be configured by setting the following environment variables 
+The application can be configured by setting the following environment variables. Or create a file called
+`.env` in the same folder as this README file with a copy of the follow snippet. Before you can run the
+tool, you have to get the passwords, id's and secrets from their respective place.
+
+This informatino should NEVER be saved in a public place. 
 
 ```bash
 # Your iZettle email adress
 IZETTLE_EMAIL=
 # Your iZettle password
 IZETTLE_PASSWORD=
-# The folder where the reports will be generated, this is the folder ID which can be found in the folder url
-# https://drive.google.com/drive/u/0/folders/GDRIVE_FOLDER_ID
-GDRIVE_FOLDER_ID=
-# The client id and secret can be retreived when creating a new application and oAuth2 client
-# 1. Create a new application with application type other
-#    https://console.developers.google.com/projectcreate
-# 2. Add the Google Drive API 
-#    https://console.developers.google.com/apis/library/drive.googleapis.com
-# 3. Create a new oAuth2 Client 
-#    https://console.developers.google.com/apis/credentials
-CLIENT_ID=
-# The secret which is shown when creating the application
-CLIENT_SECRET=
+# The client which you can get by creating a new project at https://developer.izettle.com/login
+IZETTLE_CLIENT_ID=
+# The client secret which you can get by creating a new project at https://developer.izettle.com/login 
+IZETTLE_CLIENT_SECRET=
+
+# The client ID of the visma integration. Can be found:
+# * In an e-mail from eAccountingApi@visma.com
+# * Or by regestering an account at https://selfservice.developer.vismaonline.com/
+VISMA_CLIENT_ID=
+# The client secret of the visma integration. Can be found:
+# * In an e-mail from eAccountingApi@visma.com
+# * Or by regestering an account at https://selfservice.developer.vismaonline.com/
+VISMA_CLIENT_SECRET=
+```
+
+Except for setting the authentication information, a few extra things must be specified.
+Create a new file called `config.json` in the same folder as `.env` and copy the following
+snippet. All the values can be changed based on the situation.
+
+* `izettleLedgerAccountNumber` specifies the debit account used in the voucher
+* `otherIncomeAccountNumber` specifies the default account to use if the voucher can not
+                             be classified.
+* `vismaUncategorizedProjectNumber` specifies the project number to use when creating a voucher.
+                                    This is preferably one with a name like `Uncategorized iZettle Import`.
+                                    
+* `izettleVismaMap` specifies which izettle user should belong to which visma "cost center" (Kommitté).
+                    FILL_THIS_IN is left blank since it is a name of an old treasurer. This name can be found
+                    in izettle when looking at sales reports.
+
+```json
+{
+  "izettleLedgerAccountNumber": 1690,
+  "otherIncomeAccountNumber": 3110,
+  "vismaUncategorizedProjectNumber": "1",
+  "izettleVismaMap": [
+    ["FILL_THIS_IN", "Ztyret"],
+    ["DaltonZ .", "DaltonZ"],
+    ["ZEXET .", "ZEXET"],
+    ["ZnollK .", "ZØK"],
+    ["ZIK .", "ZIK"],
+    ["Argz .", "ArgZ"],
+    ["Zenith .", "Zenith"],
+    ["SNZ .", "SNZ"],
+  ]
+}
 ```
