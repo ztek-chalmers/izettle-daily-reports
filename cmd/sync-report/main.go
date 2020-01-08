@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"izettle-daily-reports/generate"
 	"izettle-daily-reports/izettle"
+	"izettle-daily-reports/util"
 	"izettle-daily-reports/visma"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 )
 
 type Preferences struct {
+	FromDate                        util.Date
 	IzettleLedgerAccountNumber      int
 	OtherIncomeAccountNumber        int
 	VismaUncategorizedProjectNumber string
@@ -41,12 +43,6 @@ func main() {
 	vismaApplicationSecret := mustGetEnv("VISMA_CLIENT_SECRET")
 	fmt.Println("DONE")
 
-	prefData, err := ioutil.ReadFile("config.json")
-	handleError(err)
-	pref := Preferences{}
-	err = json.Unmarshal(prefData, &pref)
-	handleError(err)
-
 	fmt.Print("Logging in to your izettle account... ")
 	iz, err := izettle.Login(izettleEmail, izettlePassword, izettleApplicationID, izettleApplicationSecret)
 	handleError(err)
@@ -65,6 +61,21 @@ func main() {
 	currentYear, err := vi.CurrentFiscalYear()
 	handleError(err)
 	fmt.Println("DONE")
+
+	fmt.Print("Reading config.json... ")
+	prefData, err := ioutil.ReadFile("config.json")
+	handleError(err)
+	pref := Preferences{}
+	err = json.Unmarshal(prefData, &pref)
+	handleError(err)
+	fromDate := currentYear.StartDate
+	if pref.FromDate.After(fromDate) {
+		fromDate = pref.FromDate
+	} else {
+		fmt.Println("\n * From date was before the start of this year and is therefor ignored.")
+	}
+	fmt.Println("DONE")
+
 	var uncategorizedIzettlePrj visma.Project
 	for _, p := range projects {
 		if p.Number == pref.VismaUncategorizedProjectNumber {
@@ -76,8 +87,8 @@ func main() {
 		handleError(fmt.Errorf("unable to find poject with number: %s", pref.VismaUncategorizedProjectNumber))
 	}
 
-	fmt.Print("Fetching visma vouchers... ")
-	vouchers, err := vi.Vouchers(currentYear.ID)
+	fmt.Printf("Fetching visma vouchers between %s and %s... ", fromDate.String(), currentYear.EndDate.String())
+	vouchers, err := vi.Vouchers(pref.FromDate, currentYear.ID)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -85,8 +96,8 @@ func main() {
 	products, err := iz.Products()
 	handleError(err)
 	fmt.Println("DONE")
-	fmt.Print("Fetching izettle purchases... ")
-	purchases, err := iz.Purchases(currentYear.StartDate, currentYear.EndDate)
+	fmt.Printf("Fetching izettle purchases between %s and %s... ", fromDate.String(), currentYear.EndDate.String())
+	purchases, err := iz.Purchases(fromDate, currentYear.EndDate)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -119,7 +130,7 @@ func main() {
 	}
 
 	if len(pendingVouchers) == 0 {
-		fmt.Printf("Everything is up to date!")
+		fmt.Printf("All %d reports are already imported into visma. Just chilaxing for now.", len(reports))
 		os.Exit(0)
 	}
 

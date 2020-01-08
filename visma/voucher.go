@@ -31,7 +31,7 @@ const SupplierQuickInvoiceDebit = 25
 const SupplierQuickInvoiceCredit = 26
 const IZettleVoucher = 27
 
-func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
+func (c *Client) Vouchers(fromDate util.Date, id ...string) ([]Voucher, error) {
 	resource := "vouchers"
 	if len(id) > 2 {
 		return nil, fmt.Errorf("vouchers can only take one optional fiscal year and voucher id")
@@ -53,7 +53,9 @@ func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 			return nil, err
 		}
 		for _, v := range resp.Data {
-			vouchers = append(vouchers, v)
+			if v.VoucherDate.After(fromDate) {
+				vouchers = append(vouchers, v)
+			}
 		}
 		if resp.Meta.CurrentPage >= resp.Meta.TotalNumberOfPages {
 			break
