@@ -2,7 +2,6 @@ package izettle
 
 import (
 	"fmt"
-	"izettle-daily-reports/preferences"
 	"izettle-daily-reports/util"
 	"sort"
 	"strconv"
@@ -66,7 +65,7 @@ func findProductVariant(uuid string, products []Product) (Product, Variant, bool
 	return Product{}, Variant{}, false
 }
 
-func Reports(purchases Purchases, products []Product) []Report {
+func Reports(purchases Purchases, products []Product, defaultAccountNumber int) []Report {
 	reports := []Report{}
 	purchaseUnits := purchases.Group()
 	for _, purchase := range purchaseUnits {
@@ -96,7 +95,7 @@ func Reports(purchases Purchases, products []Product) []Report {
 					Name:         name,
 					Count:        s.Count,
 					Amount:       s.Amount,
-					VismaAccount: preferences.OtherIncomeAccountNumber,
+					VismaAccount: defaultAccountNumber,
 				})
 			}
 		}

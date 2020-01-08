@@ -1,10 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"izettle-daily-reports/generate"
 	"izettle-daily-reports/izettle"
-	"izettle-daily-reports/preferences"
 	"izettle-daily-reports/visma"
 	"log"
 	"os"
@@ -12,6 +13,13 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+type Preferences struct {
+	IzettleLedgerAccountNumber      int
+	OtherIncomeAccountNumber        int
+	VismaUncategorizedProjectNumber string
+	IzettleVismaMap                 []generate.IzettleVismaMapping
+}
 
 func main() {
 	fmt.Printf("izettle-report-generator run at %s\n\n", time.Now())
@@ -33,6 +41,12 @@ func main() {
 	vismaApplicationSecret := mustGetEnv("VISMA_CLIENT_SECRET")
 	fmt.Println("DONE")
 
+	prefData, err := ioutil.ReadFile("config.json")
+	handleError(err)
+	pref := Preferences{}
+	err = json.Unmarshal(prefData, &pref)
+	handleError(err)
+
 	fmt.Print("Logging in to your izettle account... ")
 	iz, err := izettle.Login(izettleEmail, izettlePassword, izettleApplicationID, izettleApplicationSecret)
 	handleError(err)
@@ -53,13 +67,13 @@ func main() {
 	fmt.Println("DONE")
 	var uncategorizedIzettlePrj visma.Project
 	for _, p := range projects {
-		if p.Number == preferences.VismaUncategorizedProjectNumber {
+		if p.Number == pref.VismaUncategorizedProjectNumber {
 			uncategorizedIzettlePrj = p
 			break
 		}
 	}
 	if uncategorizedIzettlePrj.ID == "" {
-		handleError(fmt.Errorf("unable to find poject with number: %s", preferences.VismaUncategorizedProjectNumber))
+		handleError(fmt.Errorf("unable to find poject with number: %s", pref.VismaUncategorizedProjectNumber))
 	}
 
 	fmt.Print("Fetching visma vouchers... ")
@@ -77,12 +91,14 @@ func main() {
 	fmt.Println("DONE")
 
 	fmt.Print("Generating vouchers... ")
-	reports := izettle.Reports(*purchases, products)
-	unmatchedVouchers, err := generate.GetUnmatchedVouchers(reports, vouchers, cc[0].Items)
+	matcher := generate.NewMatcher(pref.IzettleLedgerAccountNumber, pref.IzettleVismaMap)
+	generator := generate.NewGenerator(matcher)
+	reports := izettle.Reports(*purchases, products, pref.OtherIncomeAccountNumber)
+	unmatchedVouchers, err := matcher.GetUnmatchedVouchers(reports, vouchers, cc[0].Items)
 	handleError(err)
-	unmatchedReports, err := generate.GetUnmatchedReports(reports, vouchers, cc[0].Items)
+	unmatchedReports, err := matcher.GetUnmatchedReports(reports, vouchers, cc[0].Items)
 	handleError(err)
-	pendingVouchers, ignoredReports, err := generate.GeneratePendingVouchers(unmatchedReports, cc[0].Items, uncategorizedIzettlePrj)
+	pendingVouchers, ignoredReports, err := generator.GeneratePendingVouchers(unmatchedReports, cc[0].Items, uncategorizedIzettlePrj)
 	handleError(err)
 	fmt.Println("DONE")
 
@@ -109,11 +125,11 @@ func main() {
 
 	fmt.Printf("Preparing to uppload %d vouchers\n", len(pendingVouchers))
 	for _, v := range pendingVouchers {
-		sum, err := generate.GetVoucherSum(v)
+		sum, err := matcher.GetVoucherSum(v)
 		handleError(err)
 		fmt.Printf(" * %s\t%s\t%s\n", v.VoucherDate.String(), v.VoucherText, sum.String())
 		for _, r := range v.Rows {
-			costCenter, err := generate.GetVoucherCostCenter(v, cc[0].Items)
+			costCenter, err := matcher.GetVoucherCostCenter(v, cc[0].Items)
 			handleError(err)
 			fmt.Printf("     %d\t%s\t%s\t%s\n", r.AccountNumber, costCenter.ShortName, r.DebitAmount.String(), r.CreditAmount.String())
 		}
@@ -123,7 +139,7 @@ func main() {
 
 	fmt.Printf("Upploading vouchers...\n")
 	for _, v := range pendingVouchers {
-		sum, err := generate.GetVoucherSum(v)
+		sum, err := matcher.GetVoucherSum(v)
 		handleError(err)
 		fmt.Printf(" + %s\t%s\t%s...", v.VoucherDate.String(), v.VoucherText, sum.String())
 		_, err = vi.NewVoucher(v)

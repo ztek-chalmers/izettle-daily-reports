@@ -1,2 +1,6 @@
 .env
 tokens
+config.json
+server.crt
+server.key
+.idea
