@@ -134,7 +134,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Printf("Preparing to uppload %d vouchers\n", len(pendingVouchers))
+	fmt.Printf("Preparing to upload %d vouchers\n", len(pendingVouchers))
 	for _, v := range pendingVouchers {
 		sum, err := matcher.GetVoucherSum(v)
 		handleError(err)
