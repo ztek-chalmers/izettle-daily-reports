@@ -33,10 +33,6 @@ const IZettleVoucher = 27
 
 func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 	resource := "vouchers"
-	resp := &struct {
-		Meta Meta
-		Data []Voucher
-	}{}
 	if len(id) > 2 {
 		return nil, fmt.Errorf("vouchers can only take one optional fiscal year and voucher id")
 	} else if len(id) == 1 {
@@ -44,34 +40,27 @@ func (c *Client) Vouchers(id ...string) ([]Voucher, error) {
 	} else if len(id) == 2 {
 		resource = resource + "/" + id[0] + "/" + id[1]
 	}
-
-	err := c.GetRequestPage(resource, 1, 1000, resp)
-	if err != nil {
-		return nil, err
-	}
-	vouchers := resp.Data
+	page := 1
+	pageSize := 1000
+	vouchers := []Voucher{}
 	for {
-		if resp.Meta.CurrentPage >= resp.Meta.TotalNumberOfPages {
-			break
-		}
-		err := c.GetRequestPage(resource, resp.Meta.CurrentPage+1, resp.Meta.PageSize, resp)
+		resp := struct {
+			Meta Meta
+			Data []Voucher
+		}{}
+		err := c.GetRequestPage(resource, page, pageSize, &resp)
 		if err != nil {
 			return nil, err
 		}
 		for _, v := range resp.Data {
 			vouchers = append(vouchers, v)
 		}
-	}
-
-	voucherExists := make(map[string]bool)
-	for _, v := range vouchers {
-		exists := voucherExists[v.NumberAndNumberSeries]
-		if exists {
-			return nil, fmt.Errorf("found duplicate for voucher %s", v.NumberAndNumberSeries)
+		if resp.Meta.CurrentPage >= resp.Meta.TotalNumberOfPages {
+			break
 		}
-		voucherExists[v.NumberAndNumberSeries] = true
+		page = resp.Meta.CurrentPage + 1
+		pageSize = resp.Meta.PageSize
 	}
-
 	return vouchers, nil
 }
 
