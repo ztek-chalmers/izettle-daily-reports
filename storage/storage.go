@@ -36,19 +36,7 @@ func UploadPDF(ds *drive.Service, report MissingPDF, data io.Reader) error {
 	isYear := regexp.MustCompile("\\d+")
 	dir := report.Dir
 	if !isYear.Match([]byte(dir.Name)) {
-		year := strings.Split(report.Report.Date, "-")[0]
-		dir = &drive.File{
-			MimeType: "application/vnd.google-apps.folder",
-			Name:     year,
-			Parents:  []string{report.Dir.Id},
-		}
-		_, err := ds.Files.
-			Create(dir).
-			SupportsTeamDrives(true).
-			Do()
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("failed to find year directory to uppload PDF:s to. Please create the year directory for date %s and %s and try again", dir.Name, report.Report.User.Name)
 	}
 	f := &drive.File{
 		MimeType: "application/pdf",

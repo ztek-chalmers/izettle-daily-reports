@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 type Client struct {
@@ -39,52 +39,52 @@ type User struct {
 	Name string
 }
 
-func (i *Client) ListUsers() (map[string]User, error) {
-	// Get csrf tokens from the staff page to load users
-	resp, err := i.httpClient.Get("https://my.izettle.com/settings/staff")
-	if err != nil {
-		return nil, err
-	}
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	_ = resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	n := doc.Find("[name=csrf-param]").First()
-	param, _ := n.Attr("content")
-	n = doc.Find("[name=csrf-token]").First()
-	token, _ := n.Attr("content")
+type IZettleAccount struct {
+	ID        int
+	UUID      string
+	Status    string
+	FirstName string
+}
 
-	// Get all active users
-	staffURL := fmt.Sprintf("https://my.izettle.com/settings/staff?filter=accepted&%s=%s", param, url.QueryEscape(token))
-	req, _ := http.NewRequest("GET", staffURL, nil)
-	// These headers are required, don't ask me why...
-	req.Header.Add("X-CSRF-Token", token)
-	req.Header.Add("X-Requested-With", "XMLHttpRequest")
-	resp, err = i.httpClient.Do(req)
+func (i *Client) ListUsers() (map[string]User, error) {
+	// Get all accounts except for ztyret
+	subAccounts := []IZettleAccount{}
+	err := i.authorizedGetJSON("GET", "https://secure.izettle.com/api/resources/subaccounts", &subAccounts)
 	if err != nil {
 		return nil, err
 	}
-	doc, err = goquery.NewDocumentFromReader(resp.Body)
-	_ = resp.Body.Close()
+
+	// Get the organization ID which is required to get ztyrets account number
+	data, err := i.authorizedGet("GET", "https://my.izettle.com/")
 	if err != nil {
 		return nil, err
 	}
+	getID := regexp.MustCompile("\"visitorId\":\"([^\"]*)\"")
+	orgUUID := string(getID.FindSubmatch(data)[1])
+
+	// Get ztyrets account number
+	ztyretData := struct {
+		User IZettleAccount
+	}{}
+	err = i.authorizedGetJSON("GET", fmt.Sprintf("https://secure.izettle.com/api/resources/user/organization/%s", orgUUID), &ztyretData)
+	if err != nil {
+		return nil, err
+	}
+	subAccounts = append(subAccounts, IZettleAccount{
+		ID:        ztyretData.User.ID,
+		UUID:      ztyretData.User.UUID,
+		Status:    "ACCEPTED",
+		FirstName: "ztyret",
+	})
+
 	users := make(map[string]User)
-	userNodes := doc.Find(".user")
-	if len(userNodes.Nodes) == 0 {
-		return nil, fmt.Errorf("failed to list users")
-	}
-	for _, n := range userNodes.Nodes {
-		// The name is formatted "KOMITEE .", we ae only interested in the "first name"
-		nameValue := doc.FindNodes(n).Find(".name").Nodes[0].FirstChild.Data
-		name := strings.ToLower(strings.Split(nameValue, " ")[0])
-		// The id is formatted "#user-123", we are only interested in the numbers
-		idValue, _ := doc.FindNodes(n).Find(".button").Attr("data-overlay-from")
-		id := strings.Split(idValue, "-")[1]
-		users[name] = User{
-			ID:   id,
-			Name: name,
+	for _, account := range subAccounts {
+		if account.Status == "ACCEPTED" {
+			name := strings.ToLower(account.FirstName)
+			users[name] = User{
+				ID:   strconv.Itoa(account.ID),
+				Name: name,
+			}
 		}
 	}
 	return users, nil
@@ -169,7 +169,7 @@ func (r *Report) Day() DayReport {
 
 // getAuthorization returns an authorization token from the cookie jar
 func (i *Client) getAuthorization() (string, error) {
-	host, _ := url.Parse("https://izettle.com")
+	host, _ := url.Parse("https://my.izettle.com")
 	cookies := i.httpClient.Jar.Cookies(host)
 	for _, c := range cookies {
 		if c.Name == "_izsessionat" {
