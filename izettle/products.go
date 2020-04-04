@@ -1,5 +1,7 @@
 package izettle
 
+import "encoding/json"
+
 type Product struct {
 	UUID              string    `json:"uuid"`
 	Categories        []string  `json:"categories"`
@@ -43,14 +45,20 @@ type Source struct {
 	External bool   `json:"external"`
 }
 
-func (c *Client) Products() ([]Product, error) {
+func (c *Client) Products() (products []Product, err error) {
 	resource := "/organizations/self/library"
-	resp := struct {
-		Products []Product
-	}{}
-	err := c.GetRequest(productURL, resource, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Products, nil
+	err = c.GetAllRequest(productURL+resource, func(data []byte) error {
+		resp := &struct {
+			Products []Product
+		}{}
+		err := json.Unmarshal(data, resp)
+		if err != nil {
+			return err
+		}
+		for _, p := range resp.Products {
+			products = append(products, p)
+		}
+		return nil
+	})
+	return products, err
 }

@@ -45,6 +45,15 @@ func (m *Matcher) GetReportCostCenter(report izettle.Report, costCenterItems []v
 	return nil, fmt.Errorf("failed to lookup cost center for report: %s %s", report.Date, report.Username)
 }
 
+func (m *Matcher) IsIZettleRelated(voucher visma.Voucher) bool {
+	for _, row := range voucher.Rows {
+		if row.AccountNumber == m.ledgerAccountNumber {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *Matcher) GetVoucherCostCenter(voucher visma.Voucher, costCenterItems []visma.CostCenterItem) (*visma.CostCenterItem, error) {
 	for _, row := range voucher.Rows {
 		if row.AccountNumber != m.ledgerAccountNumber {
@@ -92,9 +101,9 @@ func (m *Matcher) GetUnmatchedReports(reports []izettle.Report, vouchers []visma
 	for _, report := range reports {
 		exists := false
 		for _, voucher := range vouchers {
-			if !m.isImportedVoucher(voucher) {
-				// It's not an imported voucher,
-				// so we know it can't be the same sale
+			if !m.IsIZettleRelated(voucher) {
+				// The voucher is not related to iZettle,
+				// so it's not a sale
 				continue
 			}
 			costCenter, err := m.GetVoucherCostCenter(voucher, costCenterItems)
@@ -118,7 +127,10 @@ func (m *Matcher) GetUnmatchedReports(reports []izettle.Report, vouchers []visma
 			if !sum.Equal(report.Sum().Decimal) {
 				// The price amounts do not match,
 				// so we know it can't be the same sale
-				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
+				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date.String(), report.Username, voucher.NumberAndNumberSeries)
+			}
+			if !m.isImportedVoucher(voucher) {
+				fmt.Printf("The voucher %s is manually created, but is will be used in place of a new voucher", voucher.ID)
 			}
 			exists = true
 			break
@@ -161,7 +173,7 @@ func (m *Matcher) GetUnmatchedVouchers(reports []izettle.Report, vouchers []vism
 			if !sum.Equal(report.Sum().Decimal) {
 				// The price amounts do not match,
 				// so we know it can't be the same sale
-				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date, report.Username, voucher.NumberAndNumberSeries)
+				return nil, fmt.Errorf("found voucher with the correct date and user but not the same sum: %s %s %s", report.Date.String(), report.Username, voucher.NumberAndNumberSeries)
 			}
 			exists = true
 			break

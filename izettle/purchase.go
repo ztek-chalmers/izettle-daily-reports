@@ -1,6 +1,8 @@
 package izettle
 
 import (
+	"encoding/json"
+	"fmt"
 	"izettle-daily-reports/util"
 	"strconv"
 
@@ -85,18 +87,28 @@ type GroupedVatAmounts struct {
 }
 
 func (c *Client) Purchases(from util.Date, to util.Date) (*Purchases, error) {
-	resource := "/purchases/v2?startDate=2019-01-01"
-	resp := &struct {
-		Purchases []Purchase
-		LinkURLS  []string
-	}{}
-	err := c.GetRequest(purchaseURL, resource, resp)
+	year, month, day := from.Time().Date()
+	resource := fmt.Sprintf("/purchases/v2?startDate=%d-%d-%d", year, month, day)
+	purchases := []Purchase{}
+	err := c.GetAllRequest(purchaseURL+resource, func(data []byte) error {
+		resp := &struct {
+			Purchases []Purchase
+		}{}
+		err := json.Unmarshal(data, resp)
+		if err != nil {
+			return err
+		}
+		for _, p := range resp.Purchases {
+			purchases = append(purchases, p)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	filteredPurchases := []Purchase{}
-	for _, p := range resp.Purchases {
+	for _, p := range purchases {
 		if p.Timestamp.After(from) && p.Timestamp.Before(to) {
 			purchase := p
 			for i, prod := range purchase.Products {

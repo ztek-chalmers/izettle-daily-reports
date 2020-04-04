@@ -16,6 +16,7 @@ import (
 )
 
 type Preferences struct {
+	DryRun                          bool
 	FromDate                        util.Date
 	IzettleLedgerAccountNumber      int
 	OtherIncomeAccountNumber        int
@@ -154,6 +155,11 @@ func main() {
 		handleError(err)
 	}
 	fmt.Println()
+
+	if pref.DryRun {
+		fmt.Printf("This was a dry run so no new vouchers where uploaded")
+		return
+	}
 
 	fmt.Printf("Upploading vouchers...\n")
 	for _, v := range pendingVouchers {
