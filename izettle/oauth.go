@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"izettle-daily-reports/loopback"
 	"net/http"
 	"net/url"
 
@@ -19,30 +18,31 @@ var Endpoint = oauth2.Endpoint{
 }
 
 func Login(user, password, id, secret string) (*Client, error) {
-	storage := &loopback.Storage{Name: "izettle"}
+	//storage := &loopback.Storage{Name: "izettle"}
 	oauth := &oauth2.Config{
 		ClientID:     id,
 		ClientSecret: secret,
 		Endpoint:     Endpoint,
 	}
-	auth := &loopback.Auth{
-		Storage: storage,
-		Oauth:   oauth,
-	}
+	//auth := &loopback.Auth{
+	//	Storage: storage,
+	//	Oauth:   oauth,
+	//}
 
-	token, err := storage.Load()
-	if err == nil {
-		token, err := auth.Refresh(token)
-		if err != nil {
-			return nil, err
-		}
-		return &Client{token: token}, nil
-	}
-	token, err = fetchToken(user, password, id, secret)
+	// Refreshi is currently not working
+	//token, err := storage.Load()
+	//if err == nil {
+	//	token, err := auth.Refresh(token)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	return &Client{token: token}, nil
+	//}
+	token, err := fetchToken(user, password, id, secret)
 	if err != nil {
 		return nil, err
 	}
-	_ = storage.Persist(*token)
+	//_ = storage.Persist(*token)
 	return &Client{token: oauth.TokenSource(context.Background(), token)}, nil
 }
 

@@ -57,16 +57,12 @@ func main() {
 
 	fmt.Print("  izettle account using browser cookie... ")
 	token, err := ioutil.ReadFile("tokens/_izsessionat.token")
-	izBrowser := izettle.BrowserLogin(string(token))
+	izBrowser := izettle.BrowserLoginCookie(string(token))
 	if !izBrowser.IsLoggedIn() {
-		err = ioutil.WriteFile("tokens/_izsessionat.token", []byte{}, 0644)
+		cookie := ""
+		izBrowser, cookie, err = izettle.BrowserLoginEmail(pref.IZettle.Email, pref.IZettle.Password)
+		err = ioutil.WriteFile("tokens/_izsessionat.token", []byte(cookie), 0644)
 		handleError(err)
-		log.Fatalf("\nMissing izettle cookie. The cookie can be optained as follows:\n" +
-			"  1. Log into iZettle\n" +
-			"  2. Open the development console\n" +
-			"  3. Go to application/storage tab in the development console\n" +
-			"  4. Copy the cookie with name _izsessionnat\n" +
-			"  5. Paste cookie in the file 'tokens/_izessionsnat.token', which i have generated for you\n")
 	}
 	fmt.Println("DONE")
 

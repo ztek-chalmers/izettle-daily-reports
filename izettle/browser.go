@@ -2,9 +2,15 @@ package izettle
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+
+	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/chromedp"
+
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -15,15 +21,60 @@ type BrowersClient struct {
 	httpClient *http.Client
 }
 
-func BrowserLogin(session string) *BrowersClient {
+func BrowserLoginEmail(email, password string) (*BrowersClient, string, error) {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	taskCtx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	session := ""
+	loginURL := fmt.Sprintf("https://login.izettle.com/login?username=%s", email)
+	tasks := chromedp.Tasks{
+		chromedp.Navigate(loginURL),
+		chromedp.WaitVisible(`#password`, chromedp.ByID),
+		chromedp.SendKeys(`#password`, password, chromedp.ByID),
+		chromedp.Click("#submitBtn"),
+		chromedp.WaitVisible(`.dashboard`, chromedp.ByQuery),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			cookies, err := network.GetAllCookies().Do(ctx)
+			if err != nil {
+				return err
+			}
+			for i, cookie := range cookies {
+				log.Printf("chrome cookie %d: %+v", i, cookie)
+				if cookie.Name == "_izsessionat" {
+					session = cookie.Value
+					return nil
+				}
+			}
+			return fmt.Errorf("Cookie _izsessionat not found")
+		}),
+	}
+
+	// ensure that the browser process is started
+	if err := chromedp.Run(taskCtx, tasks); err != nil {
+		return nil, "", err
+	}
+
+	return BrowserLoginCookie(session), session, nil
+}
+
+func BrowserLoginCookie(cookie string) *BrowersClient {
 	// Create cookie jar to store cookies which are set by later requests
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		panic(err)
 	}
 	cookieURL, err := url.Parse("https://my.izettle.com")
+	if err != nil {
+		panic(err)
+	}
 	jar.SetCookies(cookieURL, []*http.Cookie{{
-		Name: "_izsessionat", Value: session,
+		Name: "_izsessionat", Value: cookie,
 	}})
 
 	client := &http.Client{Jar: jar}
