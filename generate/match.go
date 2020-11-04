@@ -1,38 +1,37 @@
 package generate
 
 import (
-	"encoding/json"
 	"fmt"
 	"izettle-daily-reports/izettle"
 	"izettle-daily-reports/util"
 	"izettle-daily-reports/visma"
 )
 
-type IzettleVismaMapping struct {
-	Izettle string
-	Visma   string
+type User struct {
+	Izettle IZettleUser
+	Visma   VismaUser
 }
 
-func (m *IzettleVismaMapping) UnmarshalJSON(data []byte) error {
-	raw := []string{}
-	err := json.Unmarshal(data, &raw)
-	if err != nil {
-		return err
-	}
-	m.Izettle = raw[0]
-	m.Visma = raw[1]
-	return nil
+type VismaUser struct {
+	Name string
+}
+
+type IZettleUser struct {
+	Name string
+	UUID string
 }
 
 type Matcher struct {
 	ledgerAccountNumber int
-	izettleVismaMap     []IzettleVismaMapping
+	bankAccountNumbers  []int
+	users               []User
 }
 
-func NewMatcher(ledgerAccountNumber int, izettleVismaMap []IzettleVismaMapping) Matcher {
+func NewMatcher(ledgerAccountNumber int, bankAccountNumbers []int, users []User) Matcher {
 	return Matcher{
 		ledgerAccountNumber: ledgerAccountNumber,
-		izettleVismaMap:     izettleVismaMap,
+		bankAccountNumbers:  bankAccountNumbers,
+		users:               users,
 	}
 }
 
@@ -46,12 +45,19 @@ func (m *Matcher) GetReportCostCenter(report izettle.Report, costCenterItems []v
 }
 
 func (m *Matcher) IsIZettleRelated(voucher visma.Voucher) bool {
+	hasLedger := false
+	hasBank := false
 	for _, row := range voucher.Rows {
 		if row.AccountNumber == m.ledgerAccountNumber {
-			return true
+			hasLedger = true
+		}
+		for _, n := range m.bankAccountNumbers {
+			if row.AccountNumber == n {
+				hasBank = true
+			}
 		}
 	}
-	return false
+	return hasLedger && !hasBank
 }
 
 func (m *Matcher) GetVoucherCostCenter(voucher visma.Voucher, costCenterItems []visma.CostCenterItem) (*visma.CostCenterItem, error) {
@@ -65,7 +71,7 @@ func (m *Matcher) GetVoucherCostCenter(voucher visma.Voucher, costCenterItems []
 			}
 		}
 		if row.CostCenterItemID1 == "" {
-			return nil, fmt.Errorf("voucher does not have a cost center set: %s", voucher.ID)
+			return nil, fmt.Errorf("voucher does not have a cost center set: %s - %s", voucher.VoucherText, voucher.VoucherDate.String())
 		}
 		return nil, fmt.Errorf("failed to lookup cost center for voucher: %s", voucher.ID)
 	}
@@ -88,12 +94,7 @@ func (m *Matcher) isImportedVoucher(voucher visma.Voucher) bool {
 		// so we know it can't be the same sale
 		return false
 	}
-	for _, row := range voucher.Rows {
-		if row.AccountNumber == m.ledgerAccountNumber {
-			return true
-		}
-	}
-	return false
+	return m.IsIZettleRelated(voucher)
 }
 
 func (m *Matcher) GetUnmatchedReports(reports []izettle.Report, vouchers []visma.Voucher, costCenterItems []visma.CostCenterItem) ([]izettle.Report, error) {
@@ -186,8 +187,8 @@ func (m *Matcher) GetUnmatchedVouchers(reports []izettle.Report, vouchers []vism
 }
 
 func (m *Matcher) IsSameUser(report izettle.Report, costCenter visma.CostCenterItem) bool {
-	for _, r := range m.izettleVismaMap {
-		if r.Izettle == report.Username && r.Visma == costCenter.ShortName {
+	for _, r := range m.users {
+		if r.Izettle.Name == report.Username && r.Visma.Name == costCenter.ShortName {
 			return true
 		}
 	}

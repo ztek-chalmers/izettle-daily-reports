@@ -53,7 +53,8 @@ func (c *Client) Vouchers(fromDate util.Date, toDate util.Date, id ...string) ([
 			return nil, err
 		}
 		for _, v := range resp.Data {
-			if v.VoucherDate.After(fromDate) && v.VoucherDate.Before(toDate) {
+			date := v.VoucherDate
+			if !date.Before(fromDate) && !date.After(toDate) {
 				vouchers = append(vouchers, v)
 			}
 		}
@@ -76,8 +77,23 @@ func (c *Client) NewVoucher(voucher Voucher) (*Voucher, error) {
 	return resp, nil
 }
 
+func (c *Client) NewAttachment(fileName, tp, data string) (*Attachment, error) {
+	resource := "attachments"
+	req := PendingAttachment{
+		FileName:    fileName,
+		ContentType: tp,
+		Data:        data,
+	}
+	resp := &Attachment{}
+	err := c.PostRequest(resource, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 type VoucherRow struct {
-	AccountNumber      int        `url:"AccountNumber,omitempty"`
+	AccountNumber      int        `url:"AccountNumber"`
 	AccountDescription string     `url:"AccountDescription,omitempty"`
 	DebitAmount        util.Money `url:"DebitAmount,omitempty"`
 	CreditAmount       util.Money `url:"CreditAmount,omitempty"`
@@ -96,15 +112,15 @@ type VoucherRow struct {
 
 type VoucherAttachment struct {
 	DocumentID    string   `url:"DocumentId,omitempty"`
-	DocumentType  int      `url:"DocumentType,omitempty"`
-	AttachmentIds []string `url:"AttachmentIds,omitempty"`
+	DocumentType  int      `url:"DocumentType"`
+	AttachmentIds []string `url:"AttachmentIds"`
 }
 
 type Voucher struct {
 	ID                    string             `url:"Id,omitempty"`
-	VoucherDate           util.Date          `url:"VoucherDate,omitempty"`
-	VoucherText           string             `url:"VoucherText,omitempty"`
-	Rows                  []VoucherRow       `url:"Rows,omitempty"`
+	VoucherDate           util.Date          `url:"VoucherDate"`
+	VoucherText           string             `url:"VoucherText"`
+	Rows                  []VoucherRow       `url:"Rows"`
 	NumberAndNumberSeries string             `url:"NumberAndNumberSeries,omitempty"`
 	NumberSeries          string             `url:"NumberSeries,omitempty"`
 	Attachments           *VoucherAttachment `url:"Attachments,omitempty"`

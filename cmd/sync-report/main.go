@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,52 +10,74 @@ import (
 	"izettle-daily-reports/util"
 	"izettle-daily-reports/visma"
 	"log"
-	"os"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 type Preferences struct {
-	DryRun                          bool
-	FromDate                        util.Date
-	IzettleLedgerAccountNumber      int
-	OtherIncomeAccountNumber        int
-	VismaUncategorizedProjectNumber string
-	IzettleVismaMap                 []generate.IzettleVismaMapping
+	DryRun   bool
+	FromDate util.Date
+	Users    []generate.User
+	Visma    VismaPreferences
+	IZettle  IZettlePreferences
+}
+
+type IZettlePreferences struct {
+	Email        string
+	Password     string
+	ClientID     string
+	ClientSecret string
+}
+
+type VismaPreferences struct {
+	LedgerAccountNumber        int
+	BankAccountNumbers         []int
+	OtherIncomeAccountNumber   int
+	UncategorizedProjectNumber string
+	ClientID                   string
+	ClientSecret               string
 }
 
 func main() {
 	fmt.Printf("izettle-report-generator run at %s\n\n", time.Now())
 
-	fmt.Print("Loading .env file... ")
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Printf("FAILED: %s\n", err)
-	} else {
-		fmt.Println("DONE")
+	fmt.Print("Reading config.json... ")
+	prefData, err := ioutil.ReadFile("config.json")
+	handleError(err)
+	pref := Preferences{}
+	err = json.Unmarshal(prefData, &pref)
+	handleError(err)
+	fmt.Println("DONE")
+	fmt.Println()
+
+	fmt.Println("Logging in:")
+	fmt.Print("  izettle account using official API... ")
+	iz, err := izettle.Login(pref.IZettle.Email, pref.IZettle.Password, pref.IZettle.ClientID, pref.IZettle.ClientSecret)
+	handleError(err)
+	fmt.Println("DONE")
+
+	fmt.Print("  izettle account using browser cookie... ")
+	token, err := ioutil.ReadFile("tokens/_izsessionat.token")
+	izBrowser := izettle.BrowserLogin(string(token))
+	if !izBrowser.IsLoggedIn() {
+		err = ioutil.WriteFile("tokens/_izsessionat.token", []byte{}, 0644)
+		handleError(err)
+		log.Fatalf("\nMissing izettle cookie. The cookie can be optained as follows:\n" +
+			"  1. Log into iZettle\n" +
+			"  2. Open the development console\n" +
+			"  3. Go to application/storage tab in the development console\n" +
+			"  4. Copy the cookie with name _izsessionnat\n" +
+			"  5. Paste cookie in the file 'tokens/_izessionsnat.token', which i have generated for you\n")
 	}
-
-	fmt.Print("Reading environment variables... ")
-	izettleEmail := mustGetEnv("IZETTLE_EMAIL")
-	izettlePassword := mustGetEnv("IZETTLE_PASSWORD")
-	izettleApplicationID := mustGetEnv("IZETTLE_CLIENT_ID")
-	izettleApplicationSecret := mustGetEnv("IZETTLE_CLIENT_SECRET")
-	vismaApplicationID := mustGetEnv("VISMA_CLIENT_ID")
-	vismaApplicationSecret := mustGetEnv("VISMA_CLIENT_SECRET")
 	fmt.Println("DONE")
 
-	fmt.Print("Logging in to your izettle account... ")
-	iz, err := izettle.Login(izettleEmail, izettlePassword, izettleApplicationID, izettleApplicationSecret)
+	fmt.Print("  visma account... ")
+	vi, err := visma.Login(pref.Visma.ClientID, pref.Visma.ClientSecret, visma.Sandbox)
 	handleError(err)
 	fmt.Println("DONE")
+	fmt.Println()
 
-	fmt.Print("Logging in to your visma account... ")
-	vi, err := visma.Login(vismaApplicationID, vismaApplicationSecret, visma.Sandbox)
-	handleError(err)
-	fmt.Println("DONE")
-
-	fmt.Print("Fetching visma metadata... ")
+	fmt.Println("Fetching:")
+	fmt.Print("  visma metadata... ")
 	cc, err := vi.CostCenters()
 	handleError(err)
 	projects, err := vi.Projects()
@@ -63,15 +86,11 @@ func main() {
 	handleError(err)
 	fmt.Println("DONE")
 
-	fmt.Print("Reading config.json... ")
-	prefData, err := ioutil.ReadFile("config.json")
-	handleError(err)
-	pref := Preferences{}
-	err = json.Unmarshal(prefData, &pref)
-	handleError(err)
+	// We only import reports created more than 2 days ago, this is to make sure that we do not
+	// import a half finished report.
 	toDate := util.DateFromTime(time.Now().AddDate(0, 0, -2))
 	fromDate := currentYear.StartDate
-	if pref.FromDate.After(fromDate) {
+	if !pref.FromDate.Before(fromDate) {
 		fromDate = pref.FromDate
 	} else {
 		fmt.Println("\n * From date was before the start of this year and is therefor ignored.")
@@ -80,46 +99,70 @@ func main() {
 		fmt.Println("\nThe from date is after the to date. This will not result in any imports.\nABORTING!")
 		return
 	}
-	// We only import reports created more than 2 days ago, this is to make sure that we do not
-	// import a half finished report.
-	fmt.Println("DONE")
 
+	// Find the uncategorized project id
 	var uncategorizedIzettlePrj visma.Project
 	for _, p := range projects {
-		if p.Number == pref.VismaUncategorizedProjectNumber {
+		if p.Number == pref.Visma.UncategorizedProjectNumber {
 			uncategorizedIzettlePrj = p
 			break
 		}
 	}
 	if uncategorizedIzettlePrj.ID == "" {
-		handleError(fmt.Errorf("unable to find poject with number: %s", pref.VismaUncategorizedProjectNumber))
+		handleError(fmt.Errorf("unable to find poject with number: %s", pref.Visma.UncategorizedProjectNumber))
 	}
 
-	fmt.Printf("Fetching visma vouchers between %s and %s... ", fromDate.String(), toDate.String())
+	fmt.Printf("  visma vouchers between %s and %s... ", fromDate.String(), toDate.String())
 	vouchers, err := vi.Vouchers(fromDate, toDate, currentYear.ID)
 	handleError(err)
 	fmt.Println("DONE")
 
-	fmt.Print("Fetching izettle products... ")
+	fmt.Print("  izettle products... ")
 	products, err := iz.Products()
 	handleError(err)
 	fmt.Println("DONE")
-	fmt.Printf("Fetching izettle purchases between %s and %s... ", fromDate.String(), toDate.String())
+	fmt.Printf("  izettle purchases between %s and %s... ", fromDate.String(), toDate.String())
 	purchases, err := iz.Purchases(fromDate, toDate)
 	handleError(err)
 	fmt.Println("DONE")
+	fmt.Println()
 
-	fmt.Print("Generating vouchers... ")
-	matcher := generate.NewMatcher(pref.IzettleLedgerAccountNumber, pref.IzettleVismaMap)
+	fmt.Print("Matching iZettle reports with Visma vouchers... ")
+	matcher := generate.NewMatcher(pref.Visma.LedgerAccountNumber, pref.Visma.BankAccountNumbers, pref.Users)
 	generator := generate.NewGenerator(matcher)
-	reports := izettle.Reports(*purchases, products, pref.OtherIncomeAccountNumber)
+	reports := izettle.Reports(*purchases, products, pref.Visma.OtherIncomeAccountNumber)
 	unmatchedVouchers, err := matcher.GetUnmatchedVouchers(reports, vouchers, cc[0].Items)
 	handleError(err)
 	unmatchedReports, err := matcher.GetUnmatchedReports(reports, vouchers, cc[0].Items)
 	handleError(err)
+	fmt.Println("DONE")
+	fmt.Println()
+
+	if len(unmatchedReports) == 0 {
+		fmt.Printf("All %d reports are already imported into visma. Just chilaxing for now.\n", len(reports))
+		return
+	}
+
+	fmt.Println("Generating:")
+	if !pref.DryRun {
+		fmt.Println("  PDFs...")
+		for i, r := range unmatchedReports {
+			fmt.Printf(" * %d of %d (%s %s)\n", i+1, len(unmatchedReports), r.Username, r.Date.String())
+			pdf, err := izBrowser.DayReportToPDF(r)
+			handleError(err)
+			data, err := ioutil.ReadAll(pdf)
+			handleError(err)
+			unmatchedReports[i].Attachments = append(unmatchedReports[i].Attachments, data)
+		}
+	} else {
+		fmt.Println("  no PDFs: dry run")
+	}
+
+	fmt.Print("  vouchers... ")
 	pendingVouchers, ignoredReports, err := generator.GeneratePendingVouchers(unmatchedReports, cc[0].Items, uncategorizedIzettlePrj)
 	handleError(err)
 	fmt.Println("DONE")
+	fmt.Println()
 
 	if len(unmatchedVouchers) > 0 {
 		fmt.Printf("Found the following vouchers not belonging to any report!\n")
@@ -137,36 +180,45 @@ func main() {
 		fmt.Println()
 	}
 
-	if len(pendingVouchers) == 0 {
-		fmt.Printf("All %d reports are already imported into visma. Just chilaxing for now.", len(reports))
-		return
-	}
-
 	fmt.Printf("Preparing to upload %d vouchers\n", len(pendingVouchers))
 	for _, v := range pendingVouchers {
-		sum, err := matcher.GetVoucherSum(v)
+		sum, err := matcher.GetVoucherSum(v.Voucher)
 		handleError(err)
-		fmt.Printf(" * %s\t%s\t%s\n", v.VoucherDate.String(), v.VoucherText, sum.String())
-		for _, r := range v.Rows {
-			costCenter, err := matcher.GetVoucherCostCenter(v, cc[0].Items)
+		fmt.Printf("  * %s\t%s\t%s\n", v.Voucher.VoucherDate.String(), v.Voucher.VoucherText, sum.String())
+		for _, r := range v.Voucher.Rows {
+			costCenter, err := matcher.GetVoucherCostCenter(v.Voucher, cc[0].Items)
 			handleError(err)
-			fmt.Printf("     %d\t%s\t%s\t%s\n", r.AccountNumber, costCenter.ShortName, r.DebitAmount.String(), r.CreditAmount.String())
+			fmt.Printf("          %d\t%s\t%s\t%s\n", r.AccountNumber, costCenter.ShortName, r.DebitAmount.String(), r.CreditAmount.String())
 		}
 		handleError(err)
 	}
 	fmt.Println()
 
 	if pref.DryRun {
-		fmt.Printf("This was a dry run so no new vouchers where uploaded")
+		fmt.Println("This was a dry run so no new vouchers where uploaded.")
 		return
 	}
 
 	fmt.Printf("Upploading vouchers...\n")
 	for _, v := range pendingVouchers {
-		sum, err := matcher.GetVoucherSum(v)
+		sum, err := matcher.GetVoucherSum(v.Voucher)
 		handleError(err)
-		fmt.Printf(" + %s\t%s\t%s...", v.VoucherDate.String(), v.VoucherText, sum.String())
-		_, err = vi.NewVoucher(v)
+		fmt.Printf(" + %s\t%s\t%s...", v.Voucher.VoucherDate.String(), v.Voucher.VoucherText, sum.String())
+
+		attachmentData := base64.StdEncoding.EncodeToString(v.Attachments[0])
+		handleError(err)
+		attachmentName := fmt.Sprintf("Autogenerated_%s_%s.pdf", v.Voucher.Rows[0].CostCenterItemID1, v.Voucher.VoucherDate.String())
+		attachment, err := vi.NewAttachment(attachmentName, "application/pdf", attachmentData)
+		if err != nil {
+			fmt.Printf(" FAILED! \n %s\n", err)
+			continue
+		}
+		v.Voucher.Attachments = &visma.VoucherAttachment{
+			DocumentType:  2, // Receipt
+			AttachmentIds: []string{attachment.ID},
+		}
+		_, err = vi.NewVoucher(v.Voucher)
+		handleError(err)
 		if err != nil {
 			fmt.Printf(" FAILED! \n %s\n", err)
 		} else {
@@ -179,12 +231,4 @@ func handleError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func mustGetEnv(name string) string {
-	value := os.Getenv(name)
-	if value == "" {
-		log.Fatalf("Failed to get environment variable '%s'", name)
-	}
-	return value
 }

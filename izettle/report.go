@@ -5,15 +5,17 @@ import (
 	"izettle-daily-reports/util"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
 type Report struct {
-	Date     util.Date
-	User     int
-	Username string
-	Rows     []ReportRow
+	Date        util.Date
+	UserID      int
+	Username    string
+	Rows        []ReportRow
+	Attachments [][]byte
 }
 
 type ReportRow struct {
@@ -99,10 +101,11 @@ func Reports(purchases Purchases, products []Product, defaultAccountNumber int) 
 				})
 			}
 		}
+		userName := strings.TrimSpace(strings.Split(purchase.Username, ".")[0])
 		reports = append(reports, Report{
 			Date:     purchase.Date,
-			User:     purchase.User,
-			Username: purchase.Username,
+			UserID:   purchase.User,
+			Username: userName,
 			Rows:     rows,
 		})
 	}

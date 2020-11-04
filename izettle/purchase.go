@@ -109,7 +109,7 @@ func (c *Client) Purchases(from util.Date, to util.Date) (*Purchases, error) {
 
 	filteredPurchases := []Purchase{}
 	for _, p := range purchases {
-		if p.Timestamp.After(from) && p.Timestamp.Before(to) {
+		if !p.Timestamp.Before(from) && !p.Timestamp.After(to) {
 			purchase := p
 			for i, prod := range purchase.Products {
 				// We divide the price by 100 since a price of 100.00 is represented as

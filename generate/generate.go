@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"fmt"
 	"izettle-daily-reports/izettle"
 	"izettle-daily-reports/visma"
 )
@@ -15,16 +16,21 @@ func NewGenerator(matcher Matcher) Generator {
 	}
 }
 
-func (g *Generator) GeneratePendingVouchers(unmatchedReports []izettle.Report, costCenterItems []visma.CostCenterItem, vismaProject visma.Project) ([]visma.Voucher, []izettle.Report, error) {
+type PendingVoucher struct {
+	Voucher     visma.Voucher
+	Attachments [][]byte
+}
+
+func (g *Generator) GeneratePendingVouchers(unmatchedReports []izettle.Report, costCenterItems []visma.CostCenterItem, vismaProject visma.Project) ([]PendingVoucher, []izettle.Report, error) {
 	ignoredReports := []izettle.Report{}
-	pendingVouchers := []visma.Voucher{}
+	pendingVouchers := []PendingVoucher{}
 	for _, report := range unmatchedReports {
 		costCenter, err := g.matcher.GetReportCostCenter(report, costCenterItems)
 		if err != nil {
-			// We did not manage to lookup the cost center for the report,
-			// this is probably due to a name being wrong in izettle
-			// or a new cost center (utskott/kommitte) has been
-			// added to izettle but not to visma
+			fmt.Printf("We did not manage to lookup the cost center for the user %s\n"+
+				"this is probably due to a name being wrong in izettle"+
+				"or a new cost center (utskott/kommitte) has been"+
+				"added to izettle but not to visma)\n", report.Username)
 			ignoredReports = append(ignoredReports, report)
 			continue
 		}
@@ -47,10 +53,14 @@ func (g *Generator) GeneratePendingVouchers(unmatchedReports []izettle.Report, c
 				ProjectID:         vismaProject.ID,
 			})
 		}
-		pendingVouchers = append(pendingVouchers, visma.Voucher{
+		voucher := visma.Voucher{
 			VoucherDate: report.Date,
 			VoucherText: "Uncategorized iZettle Import",
 			Rows:        rows,
+		}
+		pendingVouchers = append(pendingVouchers, PendingVoucher{
+			Voucher:     voucher,
+			Attachments: report.Attachments,
 		})
 	}
 	return pendingVouchers, ignoredReports, nil

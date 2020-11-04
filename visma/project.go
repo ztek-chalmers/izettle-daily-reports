@@ -21,18 +21,31 @@ type Project struct {
 
 func (c *Client) Projects(id ...string) ([]Project, error) {
 	resource := "projects"
-	resp := &struct {
-		Meta Meta
-		Data []Project
-	}{}
 	if len(id) > 1 {
 		return nil, fmt.Errorf("projects can only take one optional id")
 	} else if len(id) == 1 {
 		resource = resource + "/" + id[0]
 	}
-	err := c.GetRequest(resource, resp)
-	if err != nil {
-		return nil, err
+	page := 1
+	pageSize := 1000
+	projects := []Project{}
+	for {
+		resp := struct {
+			Meta Meta
+			Data []Project
+		}{}
+		err := c.GetRequestPage(resource, page, pageSize, &resp)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range resp.Data {
+			projects = append(projects, p)
+		}
+		if resp.Meta.CurrentPage >= resp.Meta.TotalNumberOfPages {
+			break
+		}
+		page = resp.Meta.CurrentPage + 1
+		pageSize = resp.Meta.PageSize
 	}
-	return resp.Data, nil
+	return projects, nil
 }

@@ -36,7 +36,6 @@ func (c *Client) CurrentFiscalYear() (*FiscalYear, error) {
 	for _, year := range years {
 		if now.After(year.StartDate.Time()) && now.Before(year.EndDate.Time()) {
 			return &year, nil
-			break
 		}
 	}
 	return nil, fmt.Errorf("failed to get current year")
