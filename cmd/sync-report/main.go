@@ -206,14 +206,18 @@ func main() {
 		handleError(err)
 	}
 	fmt.Println()
+	fmt.Printf("Summary:\n")
+	fmt.Printf("  Project name: %s\n", uncategorizedIzettlePrj.Name)
+	fmt.Printf("  Number of vouchers %d\n", len(pendingVouchers))
 
 	if pref.DryRun {
+		fmt.Println()
 		fmt.Println("This was a dry run so no new vouchers where uploaded.")
 		return
 	}
 
 	fmt.Println()
-	fmt.Println("Have you checked that all the vouchers look correct? Type 'yes' to confirm.")
+	fmt.Println("Have you checked that all the vouchers and the summary looks correct? Type 'yes' to confirm.")
 	confirmation := ""
 	_, err = fmt.Scanln(&confirmation)
 	handleError(err)
