@@ -14,11 +14,12 @@ import (
 )
 
 type Preferences struct {
-	DryRun   bool
-	FromDate util.Date
-	Users    []generate.User
-	Visma    VismaPreferences
-	IZettle  IZettlePreferences
+	DryRun      bool
+	Environment string
+	FromDate    util.Date
+	Users       []generate.User
+	Visma       VismaPreferences
+	IZettle     IZettlePreferences
 }
 
 type IZettlePreferences struct {
@@ -33,8 +34,7 @@ type VismaPreferences struct {
 	BankAccountNumbers         []int
 	OtherIncomeAccountNumber   int
 	UncategorizedProjectNumber string
-	ClientID                   string
-	ClientSecret               string
+	Environments               []visma.Environment
 }
 
 func main() {
@@ -46,6 +46,23 @@ func main() {
 	pref := Preferences{}
 	err = json.Unmarshal(prefData, &pref)
 	handleError(err)
+
+	var environment *visma.Environment
+	for _, env := range pref.Visma.Environments {
+		if pref.Environment == env.Name {
+			environment = &env
+			break
+		}
+	}
+	if environment == nil {
+		environments := make([]string, len(pref.Visma.Environments))
+		for i, env := range pref.Visma.Environments {
+			environments[i] = env.Name
+		}
+		fmt.Println()
+		handleError(fmt.Errorf("Please provide a valid environment name. Valid names are: %s", environments))
+		return
+	}
 	fmt.Println("DONE")
 	fmt.Println()
 
@@ -66,8 +83,8 @@ func main() {
 	}
 	fmt.Println("DONE")
 
-	fmt.Print("  visma account... ")
-	vi, err := visma.Login(pref.Visma.ClientID, pref.Visma.ClientSecret, visma.Sandbox)
+	fmt.Print("  visma account... (Check your browser, a browser window should have opened) ")
+	vi, err := visma.Login(*environment)
 	handleError(err)
 	fmt.Println("DONE")
 	fmt.Println()
@@ -151,7 +168,7 @@ func main() {
 			unmatchedReports[i].Attachments = append(unmatchedReports[i].Attachments, data)
 		}
 	} else {
-		fmt.Println("  no PDFs: dry run")
+		fmt.Println("  no PDFs (dry run)")
 	}
 
 	fmt.Print("  vouchers... ")
@@ -193,6 +210,15 @@ func main() {
 	if pref.DryRun {
 		fmt.Println("This was a dry run so no new vouchers where uploaded.")
 		return
+	}
+
+	fmt.Println()
+	fmt.Println("Have you checked that all the vouchers look correct? Type 'yes' to confirm.")
+	confirmation := ""
+	_, err = fmt.Scanln(&confirmation)
+	handleError(err)
+	if confirmation != "yes" {
+		handleError(fmt.Errorf("Aborting..."))
 	}
 
 	fmt.Printf("Upploading vouchers...\n")
