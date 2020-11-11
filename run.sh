@@ -13,4 +13,8 @@ fi
 if [ ! -d tokens ]; then
   mkdir tokens
 fi
+if [ ! -d pdfs ]; then
+  mkdir pdfs
+fi
+rm pdfs/*
 go run cmd/sync-report/main.go

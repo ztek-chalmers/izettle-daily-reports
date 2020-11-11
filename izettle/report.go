@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -67,9 +68,9 @@ func findProductVariant(uuid string, products []Product) (Product, Variant, bool
 	return Product{}, Variant{}, false
 }
 
-func Reports(purchases Purchases, products []Product, defaultAccountNumber int) []Report {
+func Reports(purchases Purchases, products []Product, defaultAccountNumber int, timeZone *time.Location) []Report {
 	reports := []Report{}
-	purchaseUnits := purchases.Group()
+	purchaseUnits := purchases.Group(timeZone)
 	for _, purchase := range purchaseUnits {
 		rows := []ReportRow{}
 		purchaseVariants := purchase.Summary()
@@ -100,6 +101,9 @@ func Reports(purchases Purchases, products []Product, defaultAccountNumber int) 
 					VismaAccount: defaultAccountNumber,
 				})
 			}
+		}
+		if purchase.Date.Equal(util.DateFromStringOrPanic("2020-10-13")) {
+			fmt.Println("")
 		}
 		userName := strings.TrimSpace(strings.Split(purchase.Username, ".")[0])
 		reports = append(reports, Report{

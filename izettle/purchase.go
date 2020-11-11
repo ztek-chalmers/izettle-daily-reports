@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"izettle-daily-reports/util"
 	"strconv"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -91,10 +92,10 @@ func (c *Client) Purchases(from util.Date, to util.Date) (*Purchases, error) {
 	resource := fmt.Sprintf("/purchases/v2?startDate=%d-%d-%d", year, month, day)
 	purchases := []Purchase{}
 	err := c.GetAllRequest(purchaseURL+resource, func(data []byte) error {
-		resp := &struct {
+		resp := struct {
 			Purchases []Purchase
 		}{}
-		err := json.Unmarshal(data, resp)
+		err := json.Unmarshal(data, &resp)
 		if err != nil {
 			return err
 		}
@@ -173,13 +174,15 @@ func (s GroupedPurchases) Summary() map[string]PurchaseSummaries {
 	return variants
 }
 
-func (p Purchases) GroupByDate() map[string]Purchases {
+func (p Purchases) GroupByDate(timeZone *time.Location) map[string]Purchases {
 	dates := make(map[string]Purchases)
 	for _, dp := range p.Purchases {
-		date := dp.Timestamp.String()
-		purchases := dates[date]
+		dateTime := dp.Timestamp.Time().In(timeZone)
+		date := time.Date(dateTime.Year(), dateTime.Month(), dateTime.Day(), 0, 0, 0, 0, dateTime.Location())
+		dateString := date.Format("2006-01-02")
+		purchases := dates[dateString]
 		purchases.Purchases = append(purchases.Purchases, dp)
-		dates[date] = purchases
+		dates[dateString] = purchases
 	}
 	return dates
 }
@@ -195,9 +198,9 @@ func (p Purchases) GroupByUser() map[int]Purchases {
 	return users
 }
 
-func (p Purchases) Group() []GroupedPurchases {
+func (p Purchases) Group(timeZone *time.Location) []GroupedPurchases {
 	grouped := []GroupedPurchases{}
-	purchasesByDay := p.GroupByDate()
+	purchasesByDay := p.GroupByDate(timeZone)
 	for date, dp := range purchasesByDay {
 		purchasesByUser := dp.GroupByUser()
 		for _, up := range purchasesByUser {

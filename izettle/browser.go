@@ -104,7 +104,7 @@ func (i *BrowersClient) IsLoggedIn() bool {
 }
 
 func (i *BrowersClient) DayReportToPDF(report Report) (io.Reader, error) {
-	date := report.Date.String()
+	date := report.Date.Time().Format("2006-01-02")
 	pdfURL := fmt.Sprintf("https://my.izettle.com/reports.pdf?user=%d&aggregation=day&date=%s&type=pdf", report.UserID, date)
 	resp, err := i.httpClient.Get(pdfURL)
 	if err != nil {

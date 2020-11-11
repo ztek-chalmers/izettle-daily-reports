@@ -3,8 +3,6 @@ package util
 import (
 	"errors"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -23,6 +21,7 @@ func DateFromStringOrPanic(t string) Date {
 	var d Date
 	err := d.UnmarshalJSON([]byte("\"" + t + "\""))
 	if err != nil {
+		d.UnmarshalJSON([]byte("\"" + t + "\""))
 		panic(err)
 	}
 	return d
@@ -61,22 +60,18 @@ func (d *Date) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		return nil
 	}
-	// Fractional seconds are handled implicitly by Parse.
-	var err error
+
 	noQuote := data[1 : len(data)-1]
-	date := strings.Split(string(noQuote), "T")
-	part := strings.Split(date[0], "-")
-	var intPart []int
-	for _, p := range part {
-		i, err := strconv.Atoi(p)
+	date, err := time.Parse("2006-01-02", string(noQuote))
+	if err != nil {
+		date, err = time.Parse("2006-01-02T15:04:05.999Z0700", string(noQuote))
 		if err != nil {
+			date, err = time.Parse("2006-01-02T15:04:05.999Z0700", string(noQuote))
 			return err
 		}
-		intPart = append(intPart, i)
 	}
-
-	d.t = time.Date(intPart[0], time.Month(intPart[1]), intPart[2], 0, 0, 0, 0, time.UTC)
-	return err
+	d.t = date
+	return nil
 }
 
 func (d Date) EncodeValues(key string, v *url.Values) error {
@@ -103,7 +98,7 @@ func (d Date) MarshalJSON() ([]byte, error) {
 
 	b := make([]byte, 0, len(`"2019-12-12"`))
 	b = append(b, '"')
-	b = append(b, []byte(d.String())...)
+	b = append(b, []byte(d.t.Format("2006-01-02"))...)
 	b = append(b, '"')
 	return b, nil
 }
