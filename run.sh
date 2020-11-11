@@ -18,3 +18,4 @@ if [ ! -d pdfs ]; then
 fi
 rm pdfs/*
 go run cmd/sync-report/main.go
+rm pdfs/*
