@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +35,7 @@ func Login(session string) (*Client, error) {
 
 type User struct {
 	ID   string
+	UUID string
 	Name string
 }
 
@@ -46,6 +46,13 @@ type IZettleAccount struct {
 	FirstName string
 }
 
+type IZettleSelfAccount struct {
+	Data struct {
+		ID   int    `json:"userId"`
+		UUID string `json:"userUUID"`
+	}
+}
+
 func (i *Client) ListUsers() (map[string]User, error) {
 	// Get all accounts except for ztyret
 	subAccounts := []IZettleAccount{}
@@ -54,25 +61,15 @@ func (i *Client) ListUsers() (map[string]User, error) {
 		return nil, err
 	}
 
-	// Get the organization ID which is required to get ztyrets account number
-	data, err := i.authorizedGet("GET", "https://my.izettle.com/")
-	if err != nil {
-		return nil, err
-	}
-	getID := regexp.MustCompile("\"visitorId\":\"([^\"]*)\"")
-	orgUUID := string(getID.FindSubmatch(data)[1])
-
 	// Get ztyrets account number
-	ztyretData := struct {
-		User IZettleAccount
-	}{}
-	err = i.authorizedGetJSON("GET", fmt.Sprintf("https://secure.izettle.com/api/resources/user/organization/%s", orgUUID), &ztyretData)
+	selfAccount := IZettleSelfAccount{}
+	err = i.authorizedGetJSON("GET", "https://secure.izettle.com/api/resources/user-profiles/self", &selfAccount)
 	if err != nil {
 		return nil, err
 	}
 	subAccounts = append(subAccounts, IZettleAccount{
-		ID:        ztyretData.User.ID,
-		UUID:      ztyretData.User.UUID,
+		ID:        selfAccount.Data.ID,
+		UUID:      selfAccount.Data.UUID,
 		Status:    "ACCEPTED",
 		FirstName: "ztyret",
 	})
@@ -81,8 +78,16 @@ func (i *Client) ListUsers() (map[string]User, error) {
 	for _, account := range subAccounts {
 		if account.Status == "ACCEPTED" {
 			name := strings.ToLower(account.FirstName)
+			// TODO: This fixes the mappings between the systems. Make configurable outside of the source code.
+			if name == "nydaltonz" {
+				name = "daltonz"
+			}
+			if name == "zåg" {
+				name = "zag"
+			}
 			users[name] = User{
 				ID:   strconv.Itoa(account.ID),
+				UUID: account.UUID,
 				Name: name,
 			}
 		}
@@ -98,60 +103,71 @@ type DayReport struct {
 func (i *Client) ListReports(user User) ([]DayReport, error) {
 	// Get the report summary for a user, this includes all reports which are available
 	// grouped by month.
-	resp, err := i.httpClient.Get("https://my.izettle.com/reports/summary?user=" + user.ID)
-	if err != nil {
-		return nil, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	// Based on the JSON structure we are planning on serializing
-	//          "daily"."2019-01".[*].{aggregateStart,...}
-	// We leave the leaves as raw messages since they can both contain
-	// strings and nested objects.
-	var data map[string]map[string][]map[string]*json.RawMessage
-	err = json.Unmarshal(body, &data)
+	summaryURL := fmt.Sprintf("https://reports.izettle.com/report/purchases/summary/day?startDateTime=%s&endDateTime=%s&subAccountUserId=%s", "2020-01-01T00:00:00.000Z", "2030-01-01T00:00:00.000Z", user.UUID)
+	var data []map[string]*json.RawMessage
+	err := i.authorizedGetJSON("GET", summaryURL, &data)
 	if err != nil {
 		return nil, err
 	}
 	// Time to flatten the data
 	var reports []DayReport
-	months := data["daily"]
-	for _, month := range months {
-		for _, day := range month {
-			startTime, ok := day["aggregateStart"]
-			if !ok {
-				return nil, fmt.Errorf("report summary does not have a timestamp")
-			}
-			// Since we do not run json.UnMarshal(...) the string will begin with '"',
-			// create a new slice ignoring the initial character.
-			// This timestamp is in the form 2019-09-21T01:56:09.462+0000.
-			// and we only care about the year month and day. Therefor we also
-			// cut the string at T. There are nicer ways of doing this but this works
-			start := strings.Split(string((*startTime)[1:]), "T")[0]
-			reports = append(reports, DayReport{
-				User: user,
-				Date: start,
-			})
+	for _, day := range data {
+		// Use aggregateEnd since due to the timezone, the start of the day is xxxx-xx-01Z22:00:00, instead of xxxx-xx-02Z00:00:00
+		startTime, ok := day["aggregateEnd"]
+		if !ok {
+			return nil, fmt.Errorf("report summary does not have a timestamp")
 		}
+		// Since we do not run json.UnMarshal(...) the string will begin with '"',
+		// create a new slice ignoring the initial character.
+		// This timestamp is in the form 2019-09-21T01:56:09.462+0000.
+		// and we only care about the year month and day. Therefor we also
+		// cut the string at T. There are nicer ways of doing this but this works
+		start := strings.Split(string((*startTime)[1:]), "T")[0]
+		reports = append(reports, DayReport{
+			User: user,
+			Date: start,
+		})
 	}
 	return reports, nil
 }
 
 func (i *Client) DayReportToPDF(report DayReport) (io.Reader, error) {
-	pdfURL := fmt.Sprintf("https://my.izettle.com/reports.pdf?user=%s&aggregation=day&date=%s&type=pdf", report.User.ID, report.Date)
-	resp, err := i.httpClient.Get(pdfURL)
+	generateResponse, err := i.authorizedGet("POST", fmt.Sprintf("https://reports.izettle.com/report/purchases/generate/v2?fromDate=%s&toDate=%s&subAccountUserId=%s&reportType=PDF", report.Date, report.Date, report.User.UUID))
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	_ = resp.Body.Close()
+	var request struct {
+		UUID string
+	}
+	err = json.Unmarshal(generateResponse, &request)
 	if err != nil {
 		return nil, err
 	}
-	return bytes.NewReader(body), nil
+
+	// The generation request is added to a queue. Loop a few times using an exponential backoff strategy.
+	for k := 1; k <= 4; k++ {
+		delay := time.Duration(1 << k)
+		time.Sleep(time.Second * delay)
+		body, err := i.authorizedGet("GET", fmt.Sprintf("https://reports.izettle.com/report/purchases/%s/status", request.UUID))
+		if err != nil {
+			return nil, err
+		}
+		var status struct {
+			Status string
+		}
+		err = json.Unmarshal(body, &status)
+		if err != nil {
+			return nil, err
+		}
+		if status.Status == "PROCESSED" {
+			pdf, err := i.authorizedGet("GET", fmt.Sprintf("https://reports.izettle.com/report/purchases/%s", request.UUID))
+			if err != nil {
+				return nil, err
+			}
+			return bytes.NewReader(pdf), nil
+		}
+	}
+	return nil, fmt.Errorf("report generator timed out.")
 }
 
 type Report struct {
@@ -198,8 +214,8 @@ func (i *Client) authorizedGet(method, url string) ([]byte, error) {
 	return body, nil
 }
 
-func (i *Client) authorizedGetJSON(method, url string, out interface{}) error {
-	body, err := i.authorizedGet(method, url)
+func (i *Client) authorizedGetJSON(method, resourceURL string, out interface{}) error {
+	body, err := i.authorizedGet(method, resourceURL)
 	if err != nil {
 		return err
 	}

@@ -52,8 +52,16 @@ func main() {
 	fmt.Println("Looking for missing PDFs...")
 	missingPDFs := make([]storage.MissingPDF, 0)
 	for _, user := range users {
-		fmt.Printf("Fetching reports for %s...\n", user.Name)
-		folder := folders[user.Name]
+		name := user.Name
+		fmt.Printf("Fetching reports for %s...\n", name)
+		// TODO: make this configurable outside of the source code.
+		if name == "zkk" {
+			name = "ztyret"
+		}
+		folder, ok := folders[name]
+		if !ok {
+			handleError(fmt.Errorf("folder not found for user %s", name))
+		}
 		reports, err := izettleClient.ListReports(user)
 		handleError(err)
 		fmt.Printf(" - Comparing %d report(s) against Google Drive...\n", len(reports))
